@@ -37,6 +37,12 @@ Record each decision that is hard to reverse in `docs/decisions/` as a short num
 
 EGM artifact directory: design/
 
+## Where things stand (update when it changes)
+
+- Design phase, no site code yet. Decisions 0001-0010 are in `docs/decisions/`; the summary and open items are in `design/concepts_brief.md`.
+- Waiting on the vault agent: whether consent lives in the vault or here, stable record keys, and the export format. Input: `design/vault-agent-handoff.md`.
+- Next: update the decisions the vault agent's answers change, then run `/egm:egm-draft`. Approving the design triggers the plugin setup below.
+
 ## Pending setup (remind me; remove each line once done)
 
 - BEFORE the first commit of generated data: create the hookify rule that blocks
