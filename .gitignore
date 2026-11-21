@@ -19,3 +19,6 @@ _site/
 # Machine
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Local staging (not for the repo)
+staging/

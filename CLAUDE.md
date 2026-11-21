@@ -39,8 +39,6 @@ EGM artifact directory: design/
 
 ## Pending setup (remind me; remove each line once done)
 
-- NEXT, before design work: set up the user-level push guard (block `git push`
-  when a repo's origin doesn't match the expected remote for its folder).
 - BEFORE the first commit of generated data: create the hookify rule that blocks
   commits containing DNI/CUIL patterns, absolute paths, usernames or
   non-allowlisted fields.
