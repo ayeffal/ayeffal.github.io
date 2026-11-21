@@ -38,5 +38,5 @@ in under 10 minutes.
 
 - Adding Spanish later is cheap and breaks no existing link.
 - Readers who do not read English are not served until that work is done.
-- The data schema (decision 3) must keep translatable text fields separate
+- The data schema (0004) must keep translatable text fields separate
   from language-neutral fields.

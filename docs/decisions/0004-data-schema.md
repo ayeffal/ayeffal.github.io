@@ -44,7 +44,7 @@ Files:
 - Nothing is added to the repo until the owner names it explicitly. Git
   history keeps deleted files, so an upload cannot be fully undone.
 - Paper PDFs need a rights check per item. Poster and slide files need
-  co-author consent. License terms are set in decision 6.
+  co-author consent. License terms are set in 0007.
 
 ## Alternatives
 

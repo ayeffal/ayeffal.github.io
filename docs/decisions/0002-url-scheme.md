@@ -31,16 +31,16 @@ CVs, application forms, emails, slides and papers.
 - A published URL is never removed, renamed or reused. A withdrawn paper keeps
   its page with a withdrawal notice.
 - `/es/` stays reserved (see 0001).
-- The format of `<id>` is set in decision 3.
+- The format of `<id>` is set in 0003.
 - **Eligible statuses** for papers: published, in press, preprint. Work in
   preparation or submitted is not eligible, and nor is a draft, unless the
   owner's explicit instruction names it (below). Eligible does not mean
-  public: an item still needs the owner's manual `public` flag (0003).
+  public: an item still needs the owner's manual `public` flag (0004, 0009).
 - **Unpublished manuscripts** (submitted, in review, in preparation, draft)
   never appear on the site, as a page or as a list row, unless the owner gives an explicit
   instruction naming that manuscript. Default is excluded. The mechanism
   (a field the owner sets by hand, not one derived from the note's status) is
-  specified in decision 3.
+  specified in 0009.
 
 ## Alternatives
 
@@ -60,10 +60,10 @@ CVs, application forms, emails, slides and papers.
   its page exists yet.
 - No empty item pages. A reader cannot tell from a row alone whether it has a
   page, so the icon shows it.
-- Papers, talks and posters need enough fields to fill a page (decision 3).
+- Papers, talks and posters need enough fields to fill a page (0004).
 - Talks and posters share one vault note type (`communication`), split by its
   `format` field, so the generator must route by `format`.
 - Uploaded files (poster PDFs, recordings) need co-author consent and a
-  license; decided in decision 6.
+  license; decided in 0007.
 - A paper becomes public only by an explicit owner action, so a new note
   never leaks by default.

@@ -1,75 +1,143 @@
-# Concepts Brief: academic site (BRAINSTORM)
+# Academic website
 
-Material: CLAUDE.md and decisions 0001-0007. No code exists yet, so these are design-level findings.
+* **Author:** Abraham Yeffal
+* **Date:** 2026-11-21
 
-## Reviewer status
+## Overview
 
-| Reviewer | Status |
-| --- | --- |
-| egm-design | completed |
-| egm-codebase-details | completed |
-| egm-zoom-out | completed |
-| egm-comprehension | completed |
-| egm-implementation-readiness | completed |
-| egm-structural | completed |
-| egm-inventive-catalyst | completed |
+A personal academic website on GitHub Pages for a PhD candidate in
+neuroscience in Argentina. It has five pages: Home, Research, Papers, Talks
+and posters, and a public CV. A private notes vault is the source of truth.
+A program in the vault repo writes one export file with only the items the
+owner approved for the site. A local script, `sync`, reads that file and
+writes committed data files. An automatic build, `build`, turns those files
+into pages with Quarto. The build never sees the vault.
 
-## Cross-lens findings (raised by 4 or more lenses), strongest first
+Papers, talks and posters can have their own permanent page at
+`/<type>/<id>/`. A page exists only when the item has a summary written by
+the owner or a hosted file. Otherwise the item is a row in a list that links
+to the publisher. The site is English-only, with `/es/` reserved.
 
-1. **Privacy enforcement is a local Claude hook, not a gate.** The hookify rule is pending, runs only in Claude Code, and is skipped by plain git, other machines, `--no-verify` and CI. History is irreversible (0004). Fix: a machine-readable allowlist (JSON Schema with `additionalProperties: false`) in the repo, plus a script that also checks for absolute paths, usernames and DNI/CUIL patterns. Run it as a pre-commit hook and as a CI step before deploy. Hookify becomes optional. Hard-block the first commit of generated data until it exists.
+The decisions behind this are in `docs/decisions/` (0001 to 0010). This brief
+summarises them and records what the Goldfish review found and what is still
+open.
 
-2. **The copy step is not gated by the manifest.** Nothing says the script copies only owner-approved items. If it copies every registry note and filters later, unpublished titles enter history, which is the option 0004 rejected. Fix: manifest-driven, allowlist-first extraction. Build each record from allowlisted keys and never delete fields from a copy. Items absent from the manifest are never read. CI fails on any committed record without a manifest ID and `public: true`.
+## Analysis
 
-3. **The pipeline is described inconsistently.** CLAUDE.md and 0004 say a script copies from the vault. 0006 says "the generator never reads the vault". There are two programs: an extractor (reads the vault, run locally) and a page build (committed files only, run in CI). Name them (for example `sync` and `build`). Scope "fail on missing field" (0003) to `sync`. Have `sync` print a report with no values or titles (copied, skipped, dropped field names, mapping failures), with a dry-run that shows the diff. Write output atomically, validate types and formats, and carry a `schema_version`. The committed data then serves as a last-good snapshot, so a vault restructure cannot break the live site. Add a "last extracted" date, and a `check` mode that reports drift between vault and committed data.
+The Goldfish review (seven lenses) read decisions 0001 to 0007 and raised nine
+main objections. Status of each after decisions 0008 to 0010:
 
-4. **The untracked ID-to-vault link file is a single point of loss.** It contradicts "rebuildable anywhere" and no lock-in, and CI can never see it. It has no backup and no consistency check. Fix: name a backup outside the repo, fail when a manifest ID has no link or a link has no ID, and verify DOI or title match after a restore. Dissent (zoom-out): public items' titles are already public, so the link can live in the tracked manifest. Only unpublished items need hiding, and those never get IDs. This removes the file entirely. It needs a ruling.
+| # | Objection | Status |
+| --- | --- | --- |
+| 1 | Privacy rested on a local hook. | **Addressed in 0009**: allowlist as a schema that rejects extra keys, plus a scan for paths, usernames and DNI/CUIL, run before each commit and again in the automatic build. **Not built yet.** |
+| 2 | The copy step was not gated by approval. | **Addressed in 0003, 0008, 0009**: only items the owner marks as public are exported, and only allowlisted fields. Needs the vault agent's agreement. |
+| 3 | The pipeline was described inconsistently. | **Addressed in 0009**: `sync` (local, reads the export) and `build` (automatic, reads committed files). |
+| 4 | The untracked ID-to-vault link file. | **Resolved in 0003**: the link lives in the tracked manifest for public items only. A stable record key (proposed: ZotLit's `zotero-key`) avoids using titles. |
+| 5 | Permanence and takedown. | **Addressed in 0009**: ledger of released URLs, append-only manifest, tombstone pages, history rewrite only for a privacy leak with the owner's approval. Not built. |
+| 6 | One registry for both site and CV. | **Resolved in 0008**: same item list for papers, talks and posters. The CV may add other item types and has two contact variants (public and individual). |
+| 7 | The ten-minute goal is untested. | **Open.** No walkthrough exists. Best written after a few real items. |
+| 8 | No findability work. | **Partly addressed**: five pages, ORCID and Google Scholar links, citation meta tags and a sitemap (0009, 0010). Not built. Search Console registration is undecided. |
+| 9 | Quarto size and untested CI and PDF. | **Partly tested**: `/papers/<id>/` URLs and a list mixing external and internal links work (Quarto 1.11.9, fake data). PDF output, a CI build and a real icon are not tested. |
 
-5. **Permanence has no enforcement and no takedown path.** Nothing catches a renamed ID, a dropped manifest entry, or a page demoted to a row. 0002 covers withdrawn papers but not a mistaken publish or a co-author or rights withdrawal. 0004 admits git keeps deleted files. Fix: a committed ledger of released URLs, with CI failing if any is missing from the next build. Make the manifest append-only. Define a tombstone state (page stays, content removed, notice shown) and when a history rewrite is justified. IDs are never reused. Record the risk that renaming the GitHub account breaks every URL.
+Other points from the review:
 
-6. **"Registry feeds both site and CV" is unresolved.** The site reads a filtered public subset. A real CV lists in-review and in-preparation work and uses fields the allowlist bans. Either the CV reads the vault with its own mapping or allowlist profile (two consumers), or the CV is thin. Decide now. The shared mapping file is the natural single place where a vault field becomes a named field.
+- **Hosting PDFs in git cannot be undone.** 0004 and 0009 limit it to small
+  final-form files (5 MB cap, metadata stripped, rights and co-author checks)
+  and nothing goes in until the owner names it. Zenodo for larger files
+  remains an option.
+- **Two visibility controls.** 0009 settles it: a hand-set `public` flag, plus
+  an `owner_instruction` field with the owner's exact words for anything not
+  eligible.
+- **Quarto redirects (`aliases:`)** might soften the "no redirects" premise.
+  Not verified.
+- **Co-author names are third-party data.** No removal procedure is written.
+- **A summary that paraphrases a publisher abstract** might carry third-party
+  rights, and CC BY 4.0 cannot be withdrawn. 0004 says summaries are in the
+  owner's words, but a rule for checking this is not written.
 
-7. **The 10-minute goal is untested and probably missed at first.** One item needs an ID, a manifest entry, a link entry, an authored summary, the `public` flag, sync, review, rights checks, push and CI. Nobody has totalled this. Fix: write the numbered walkthrough with time per step. Add a plain-script `add` command that proposes `surname-year-`, checks collisions and format, and writes the manifest entry, link entry and summary stub. Keep `public: true` manual. Build the command after a few manual items (as the pending list says), and promote it to a skill afterwards. If the goal is infeasible, change the goal.
+Findings from the vault itself (a field-only check of 41 registry notes):
+two publications, both published; eleven communications, all with a `format`;
+no submitted, preprint or in-press items yet. The owner's 2026 co-authored
+paper (PLOS Biology) has no registry note in `shared/registry`.
 
-8. **Findability work is absent from the decisions.** Nothing covers `citation_*` meta tags, schema.org Person and ScholarlyArticle JSON-LD, an ORCID link, a sitemap, `robots.txt`, a canonical URL, a homepage research summary, or any contact route (deferred in 0007). Row-only items link away and add little to search. A Google Scholar-style signal needs a crawlable PDF, which conflicts with the rights rule. Decide Search Console verification (no tracker) as a free signal.
+## Goals vs. Non-Goals
 
-9. **Quarto weight and drift (about 476 MB).** CI, PDF output and real icons are untested. Fix: run an end-to-end CI build on fake data with a cache and pinned action versions. Keep logic in Python and templates thin. Change the pin in its own commit with an output-tree diff. Fail on Quarto warnings and on version mismatch. Dissent (zoom-out): the Python script could render static HTML directly, and the "one toolchain for the CV" argument was dropped in 0006. At minimum, defer the choice until the CV is built.
+* **In-Scope Goals:**
+  * A findable, credible academic home (five pages, ORCID, Scholar).
+  * The same registry notes feed the site and the PDF CV, through one export
+    and two contact variants.
+  * Zero cost and no lock-in: plain files, Quarto pinned, rebuildable from a
+    clone.
+  * Private by construction: allowlist as a schema, scans before commit and
+    in the automatic build, unpublished work excluded by default.
+  * Adding an item in under 10 minutes (goal, not yet shown).
+* **Out-of-Scope Non-Goals:** Blog, analytics, trackers, comments, forms,
+  custom domain, a contact form, Spanish pages (for now), pages for courses,
+  awards, software or datasets, teaching and news pages.
 
-## Contested or single-lens findings
+## Alternatives Weighed
 
-- **Hosting PDFs in git (design, zoom-out, structural).** History cannot be cleaned and the size has no cap. Options: per-file cap and total budget, a CI check for PDF metadata, and a rights-note plus consent-confirmed flag per file that fails the build when missing. Or use Zenodo or an institutional repository (free, DOIs, versioning) and skip in-repo files for v1.
-- **Two visibility controls (comprehension, catalyst, codebase-details).** The `public` flag (0004) and "explicit owner instruction naming the manuscript" (0002) are not clearly one switch. Proposal: a separate required field such as `owner_approved_unpublished: <date>` that CI checks against a carried-through vault status. Define what the assistant may set, since an AI edits the files.
-- **Redirects.** Catalyst notes Quarto `aliases:` writes meta-refresh stubs, weakening the "Pages cannot redirect" premise (weaker than a 301). Tradeoff: stubs accumulate. Verify before relying on it.
-- **Standard bibliographic format (zoom-out).** Use CSL-JSON plus per-item YAML instead of a bespoke schema. Caveat: "Yeffal A" is not structured family and given names.
-- **Assign IDs only when a page is created (zoom-out).** Rows have no URL, so there is nothing to protect. Conflicts with 0002's "every public item gets an ID". Needs a ruling.
-- **Scope reduction (zoom-out).** Papers first. Talks, posters, `related` links, per-field Spanish fallback and Playwright could wait.
-- **Derive "has page" in one place (structural).** The rule is spread over 0002, 0004 and 0006. Compute it in the generator and never store it. Add an accessible text label, not only an icon.
-- **Lifecycle table (implementation-readiness).** Specify what happens when a preprint gains a DOI, a page loses its summary or file, the first author changes, or `related` points to a non-public item. Fail the build on the last.
-- **Regeneration vs authored text (codebase-details).** Say that regeneration never touches authored files, and fail if one has no manifest entry.
-- **Post-deploy and link health (codebase-details).** A smoke check on the live site, and a weekly external link check that opens an issue.
-- **Co-author names are third-party personal data.** State how someone can ask for removal.
-- **License interaction (design).** CC BY 4.0 is irrevocable. A summary that paraphrases a publisher abstract may carry third-party rights.
-- **Guard `/es/` (structural).** A build check that nothing else writes under it.
+- **Bilingual from day one**: rejected. It doubles the work and no Spanish
+  need exists in the next year (0001).
+- **English under `/en/`**: rejected. It would make later moves break links.
+- **Item pages for every type or every item**: rejected. Pages with almost no
+  content look worse than a list row (0002).
+- **List pages only, with anchors**: rejected. Anchors are not permanent
+  addresses.
+- **DOI, opaque or title-based IDs**: rejected. A readable
+  `surname-year-tag` is kept (0003).
+- **Hugo**: rejected for Quarto, because Go templates are harder for the owner
+  to maintain. Python-rendered HTML was suggested as a lighter option and was
+  not adopted (0006).
+- **Jekyll**: rejected. It needs Ruby and cannot make PDFs.
+- **A wider CV allowlist**: dropped. The owner will not list in-review or
+  in-preparation work on any CV (0008).
+- **A contact form**: rejected. Forms are a non-goal, they need a third-party
+  service and they still receive spam. The email is shown as
+  `name (at) domain (dot) tld` (0008).
+- **English-first affiliation with the Spanish original in parentheses, or
+  Spanish-first with English in parentheses**: English-first kept, matching
+  the owner's PLOS paper and the supervisor's CV. Spanish official names sit
+  in page metadata (0010). A Spanish-first rule from a research file could not
+  be verified.
+- **Consent kept only in the website repo**: still open. The vault agent may
+  instead hold a consent field.
 
-## Inventive resolutions
+## Key Decisions & Staging for Next Steps
 
-- **Segmentation.** Stage 1 `sync` (local, vault, link file, mapping) writes committed data. Stage 2 `build` (CI, anywhere) needs a clone and pinned Quarto only. This resolves "rebuildable anywhere" versus the untracked link file, and makes vault drift a local failure.
-- **Structural privacy.** An allowlist-built record plus `additionalProperties: false` makes a leak a validation failure rather than something to remember.
-- **Page versus file.** Keep the page URL permanent and make the file removable, leaving a tombstone.
-- **CV profile.** One mapping file with two allowlist profiles: public (committed) and CV (local, not committed).
+Decided (see `docs/decisions/`): 0001 language, 0002 URLs, 0003 IDs, 0004
+schema and allowlist, 0005 display name, 0006 Quarto, 0007 licenses, 0008 CV
+source, 0009 privacy and permanence, 0010 pages and affiliation.
 
-## Nits
+Still open:
 
-- Stale cross-references: 0001 and 0002 say "decision 3" for the schema (it is 0004). 0002 and 0004 say "decision 6" for licenses (it is 0007). Use file numbers.
-- 0004 is "accepted" with an open point.
-- `LICENSE` and the content notice do not exist yet and are needed before the first deploy.
-- `docs/` is untracked.
-- The ID year ("first public version on the site") is ambiguous (site year or paper year?) and cannot be checked. It needs worked examples and a collision rule.
-- Undefined terms: registry, manifest, mapping file, local link file, authored text, hookify, `communication`, and the values of `format`. Add a glossary and a repo layout.
-- Error messages for each failure case (missing field, duplicate ID, public item without summary, missing rights note, missing link file on a fresh clone) are unspecified.
-- Validate that `url` is a public https link. Date format and time zone are unspecified.
-- Pin the Python dependencies.
-- 0001's translatable-field split does not appear in the 0004 schema.
+1. **Vault agent**: consent field in the vault or the website repo, who
+   creates stable record keys, and the export format.
+   `design/vault-agent-handoff.md` is the input. The vault repo has no export
+   yet.
+2. **Building**: the allowlist schema and privacy scans must exist before the
+   first commit of generated data (CLAUDE.md pending setup).
+3. **Untested**: a CI build with pinned Quarto, PDF output and an icon for
+   rows with a page.
+4. **Not written**: the ten-minute walkthrough, a lifecycle table (a preprint
+   gains a DOI, a page loses its summary, a related item is not public), error
+   messages, a glossary, a repo layout, `LICENSE` and the content notice, and
+   a co-author removal procedure.
+5. **Text and metadata**: the owner's Methods line, Search Console
+   registration, and a note for the owner's 2026 paper in the vault.
+6. **Housekeeping**: the stale "decision 3" and "decision 6" references in
+   0001, 0002 and 0004 now use file numbers (fixed 2026-11-21). 0004 is marked
+   accepted with one open point (`author_position`).
+
+Staging: papers first would be the smallest start. Talks, posters and
+`related` links need the same machinery and can follow. The pending setup in
+CLAUDE.md (frontend-design, modern-web-guidance, Playwright, then
+claude-code-setup, then the add-item skill) follows design approval and the
+scaffold.
 
 ## Not checked
 
-No reviewer inspected the vault, Quarto behaviour, CI, or any code (none exists). Pages limits, `aliases:` behaviour and CSL author compatibility are from general knowledge. The decision files were not edited.
+No reviewer inspected the vault, Quarto's behaviour beyond the fake-data test,
+CI, or any code (none exists). Claims about GitHub Pages limits, Quarto
+`aliases:` and CONICET's affiliation rule for websites are from general
+knowledge or partial reading. UBA's affiliation resolution could not be read.
