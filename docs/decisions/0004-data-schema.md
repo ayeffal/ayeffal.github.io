@@ -13,27 +13,31 @@ than a citation.
 
 Three layers, each with its own home:
 
-1. **Bibliographic fields, copied from the vault** through the mapping file
-   (0003). Only these may be copied:
-   - all item types: `title`, `date`, `authors`
+1. **Bibliographic fields, copied from the vault** through its export
+   (0008). Only these may be copied:
+   - all item types: `uid`, `title`, `date`, `date_precision`, `authors`
    - papers: `pub_type`, `article_kind`, `pub_status`, `venue`, `doi`,
-     `volume`, `pages`
+     `volume`, `pages`, `preprint_url`, `open_copy_url`, `open_copy_kind`
+     (`open_copy_url` is an external link to a free copy, never a hosted
+     file; it is shown next to the journal citation, not instead of it)
    - talks and posters: `meeting`, `format`, `abstract_published_in`, `url`
      (the vault's `url` field already means "public page of the abstract or
      programme")
 2. **Authored text, written in this repo**, one short file per item:
    an abstract or short summary in the owner's own words. This text is not
    copied from the vault.
-3. **Site-only fields, in this repo**: `id` (0003), an explicit `public`
-   flag, `related` (links to other items), and any `files` entries.
+3. **Site-only fields, in this repo**: `id` (0003), `related` (links to other
+   items), and any `files` entries.
 
 Never copied: `evidence`, `topics`, `requirements`, `requirement_status`,
-`author_position`, `venue_scope`, `issn`, inline comments in the front matter,
-and note bodies.
+`author_position`, `venue_scope`, `issn`, `site`, `site_consent`,
+`preprint_date`, inline comments in the front matter, and note bodies.
 
-Visibility: an item is public only if its `public` flag is set by the owner
-by hand. A vault `pub_status` of `published` never makes an item public by
-itself. Unpublished manuscripts follow 0002.
+Visibility: an item is public only when two things hold: the owner has set
+consent on the vault note (so the vault's export contains it, 0008), and the
+manifest has an entry for it (0003). A vault `pub_status` of `published` never
+makes an item public by itself. Unpublished manuscripts follow 0002. Changed
+2026-11-21: the site no longer has its own `public` flag.
 
 Files:
 - Small final-form files (poster PDFs, slides, a paper PDF the owner has the

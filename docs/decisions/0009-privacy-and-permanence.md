@@ -11,14 +11,17 @@ ever committed.
 
 ## Decision
 
-**Explicit instruction for unpublished work (extends 0002).**
-- Visibility needs a hand-set `public` flag in the manifest. An agent never
-  sets it on its own.
-- For an item that is not eligible (0002), the manifest entry also needs an
-  `owner_instruction` field with the date and the owner's exact words.
-  It is added only after the owner names that item in a message.
-- This may change if the vault takes over the consent flag (see
-  `design/vault-agent-handoff.md`).
+**Visibility (changed 2026-11-21).**
+- Consent is a vault field set only by the owner (`site: public` and
+  `site_consent`). The vault's export carries only consent-marked, eligible
+  items (0008). An agent never sets consent.
+- An item appears on the site only when it is in the export and has an entry
+  in the manifest. `sync` writes only items with a manifest entry and reports
+  the rest as counts. Adding the entry is the owner's act (0003).
+- There is no override for unpublished work: the `owner_instruction` field is
+  retired, because the export never carries ineligible items.
+- A released item missing from the export is an error in `sync`, never a
+  silent removal. A withdrawn item becomes a tombstone (below).
 
 **Mistakes.**
 - A history rewrite is allowed only for a privacy leak (a title, ID number,

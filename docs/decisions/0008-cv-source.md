@@ -31,9 +31,13 @@ numbers do not belong on a CV.
 - The vault repo builds the CV and also **writes one site export file**,
   holding only eligible, consent-marked items and only allowlisted fields. This
   repo's `sync` reads only that export, never the vault, so only the vault
-  repo knows the vault's layout. The export format is agreed between the
-  two repos (see `design/vault-agent-handoff.md`). This holds for now and
-  may be revisited.
+  repo knows the vault's layout. This holds for now and may be revisited.
+  - Agreed 2026-11-21: schema version 1, at `shared/cv/out/site-export.yaml`
+    in the vault. Consent is a vault field set only by the owner. Records are
+    keyed by a stable `uid`. The export is built in a separate private
+    vault-side repository, so site and CV share one eligibility rule. Format:
+    `design/reply-from-vault-agent.md`. Sample: `design/site-export.sample.yaml`.
+    `sync` fails on any other `schema_version`.
 - Site contact format: an institutional email written with " (at) " and
   " (dot) " in place of the symbols, no `mailto:` link. The address, written only in
   the obfuscated form, is `ayeffal (at) unsam (dot) edu (dot) ar`. The

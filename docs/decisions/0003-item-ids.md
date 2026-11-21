@@ -27,14 +27,18 @@ field names or filenames.
 - An ID is assigned once and never regenerated, even if authors, year or
   title later change.
 - IDs live in a manifest in this repo. The manifest also holds the link
-  between each ID and its vault note (changed 2026-11-21: it was an untracked
-  local file). Only public items appear in the manifest. An unpublished item
+  between each ID and its export record: the record's `uid`, an opaque key
+  that never changes (changed 2026-11-21: it was an untracked local file,
+  then a note filename or title). Only public items appear in the manifest. An unpublished item
   has no entry, so its title or filename never enters the repo. The automatic
   build can then read the whole link.
-- One mapping file in the repo translates vault field names into public field
-  names. If the vault structure changes, only that file is edited. The build
-  fails with an error when an expected field is missing or renamed. It never
-  skips a field and publishes a partial page.
+- The vault's export already uses the public field names (0008), so there is
+  no mapping file. The input schema (`sync/export_schema.py`) takes its
+  place. If the export format changes, `schema_version` changes and `sync`
+  fails with an error. It never skips a field and publishes a partial page.
+  Changed 2026-11-21.
+- A preprint that is later published keeps its `uid`, so it keeps its ID and
+  URL and is updated in place.
 
 ## Alternatives
 

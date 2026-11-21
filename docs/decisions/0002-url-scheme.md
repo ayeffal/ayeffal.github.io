@@ -33,14 +33,15 @@ CVs, application forms, emails, slides and papers.
 - `/es/` stays reserved (see 0001).
 - The format of `<id>` is set in 0003.
 - **Eligible statuses** for papers: published, in press, preprint. Work in
-  preparation or submitted is not eligible, and nor is a draft, unless the
-  owner's explicit instruction names it (below). Eligible does not mean
-  public: an item still needs the owner's manual `public` flag (0004, 0009).
+  preparation or submitted is not eligible, and nor is a draft. A submitted
+  paper with a preprint is shown as its preprint. Eligible does not mean
+  public: an item appears only when the vault's export contains it (the owner
+  set consent in the vault) and the manifest has an entry for it (0003, 0009).
 - **Unpublished manuscripts** (submitted, in review, in preparation, draft)
-  never appear on the site, as a page or as a list row, unless the owner gives an explicit
-  instruction naming that manuscript. Default is excluded. The mechanism
-  (a field the owner sets by hand, not one derived from the note's status) is
-  specified in 0009.
+  never appear on the site, as a page or as a list row, unless they have a
+  preprint, and then only as that preprint. There is no override: the export
+  never carries them (0008). Changed 2026-11-21: the owner-instruction
+  exception was retired.
 
 ## Alternatives
 
