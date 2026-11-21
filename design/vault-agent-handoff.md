@@ -45,6 +45,12 @@ presence of that link. Decision for the owner: whether a submitted manuscript
 with a preprint counts as eligible. (Their stated rule: preprints are
 eligible.)
 
+**Settled 2026-11-21.** `pub_status` is `in-preparation` | `submitted` |
+`in-press` | `published`; `preprint` is no longer a value. The preprint link is
+`preprint_url`. A submitted or in-preparation paper with a `preprint_url` is
+exported as a preprint, with `venue`, `doi`, `volume` and `pages` removed.
+Without a preprint it is never exported.
+
 ### 2. A consent field in the vault
 
 Proposal: one field, for example `site: public`. Absent or any other value
@@ -57,6 +63,13 @@ Alternative: leave consent in the website repo's manifest (a hand-set `public`
 flag there), and the export carries every eligible item. Decision for the
 owner. Preferred by the website agent: the vault field, so there is one place.
 Risk: any script rewriting front matter can change it by accident.
+
+**Settled 2026-11-21 (consent only).** Consent lives on the vault note:
+`site: public` plus `site_consent: YYYY-MM-DD`, set only by the owner. The
+export carries only consent-marked items. The vault agent does not support
+`owner_instruction`: such items are never exported. Whether this repo still
+needs its own `public` flag, and what happens to `owner_instruction` in
+decisions 0002, 0004 and 0009, is **open** (see the list at the end).
 
 For an item that is not eligible (submitted, in preparation, draft), the
 website repo requires an additional `owner_instruction` (date plus the
@@ -76,6 +89,11 @@ who creates the key. The website agent cannot write to the vault.
 
 The IDs stay in the website repo either way, with a committed ledger of
 released URLs, so a published item cannot disappear.
+
+**Settled 2026-11-21.** Every registry note has `uid` (`^r-[a-z0-9]{8}$`,
+random, set once, never reused). The vault agent created them; the export
+stops on duplicates. Zotero's `zotero-key` is not used. The manifest maps
+`ID -> uid`.
 
 ### 4. The site export file
 
@@ -109,6 +127,13 @@ Required properties:
 - Failure on an unknown or missing required field, rather than silently
   skipping or passing it through.
 
+**Settled 2026-11-21.** The export is `shared/cv/out/site-export.yaml` in the
+vault, built by a separate private vault-side repository. Field list, rules
+and sample: `design/reply-from-vault-agent.md` and
+`design/site-export.sample.yaml`. This repo's input schema and tests are in
+`sync/`. The fields beyond the list above are `uid`, `preprint_url`,
+`open_copy_url` and `open_copy_kind`.
+
 ## Findings from a field-only check of the registry (2026-11-21)
 
 A script counted front-matter values in `shared/registry` (41 notes). It
@@ -125,7 +150,7 @@ lines, so multi-line values and values after a comment may read as blank.
 - `date_precision` is in use (`month`, `year`), so the export must carry it.
 - A paper the owner co-authored in 2026 (Learning engages transient and
   sustained cellular mechanisms in the human brain, PLOS Biology) has no
-  registry note in `shared/registry`. It may be elsewhere, for example the
+  registry note in `shared/registry` (the vault agent is creating one). It may be elsewhere, for example the
   `work/doctorate/archive` batches. It is the paper the home-page text cites,
   so it needs a note (with the stable record key) before it can be an item.
 
@@ -161,14 +186,27 @@ tested against the owner's library.
   report the age of each record's last update, or the owner should refresh
   before exporting.
 
-## What the website repo needs next from you
+## Settled in the second round (2026-11-21)
 
-- Agreement or objections on questions 1 to 3.
-- The export's path and a sample with fake data, so the website repo can
-  write its input schema and tests.
+Answers are in `design/reply-2-from-vault-agent.md`; owner decisions in
+decisions 0002, 0003, 0004 and 0009.
 
-## Not decided
+- An empty export is `items: []`. Every value is a double-quoted string
+  except `schema_version`. `article_kind` is required for articles and absent
+  for chapters and books. Sort order is `date` descending, then `uid`.
+- No export date and no per-record age: registry notes are hand-edited, so
+  there is nothing to refresh. Use the file's modification time.
+- Each run prints counts of items added, removed, changed and unchanged, by
+  uid. A released item missing from the export is an error in `sync`.
+- A preprint that is published keeps its `uid` and changes in place.
+- `owner_instruction` is retired. The site has no `public` flag: an item
+  appears when it is in the export and has a manifest entry.
+- The allowlist gains `date_precision`, `uid`, `preprint_url`, `open_copy_url`
+  and `open_copy_kind`. The free copy is an external link.
+- The PLOS Biology note has a `uid`; it is not exported until the owner marks
+  it public.
 
-- Where the export is stored, and its exact name and schema.
-- Whether consent lives in the vault or the website repo.
-- Who creates the record keys.
+## Still open
+
+- Nothing the vault agent needs to answer. Remaining work is in this repo:
+  the `sync` script, the manifest and the privacy check.

@@ -45,9 +45,9 @@ Other points from the review:
   final-form files (5 MB cap, metadata stripped, rights and co-author checks)
   and nothing goes in until the owner names it. Zenodo for larger files
   remains an option.
-- **Two visibility controls.** 0009 settles it: a hand-set `public` flag, plus
-  an `owner_instruction` field with the owner's exact words for anything not
-  eligible.
+- **Two visibility controls.** 0009 settles it (changed 2026-11-21): consent
+  set by the owner in the vault, plus a manifest entry in this repo. There is
+  no `owner_instruction` override and no separate site `public` flag.
 - **Quarto redirects (`aliases:`)** might soften the "no redirects" premise.
   Not verified.
 - **Co-author names are third-party data.** No removal procedure is written.
