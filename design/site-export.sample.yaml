@@ -1,0 +1,57 @@
+# SAMPLE with fake data only. Same format as the real file, written by vault-export/export-site.R.
+schema_version: 1
+items:
+  - uid: r-5pkjdm6o
+    type: publication
+    title: Example paper under review, shown as its preprint
+    date: '2025-11-02'
+    authors:
+      - Doe J
+    pub_type: article
+    article_kind: original
+    pub_status: preprint
+    preprint_url: https://example.org/sub-pre
+  - uid: r-rob9ops8
+    type: publication
+    title: Example preprint not yet submitted
+    date: '2025-01-10'
+    authors:
+      - Doe J
+    pub_type: article
+    article_kind: review
+    pub_status: preprint
+    preprint_url: https://example.org/p2
+  - uid: r-o5icf221
+    type: communication
+    title: Example talk
+    date: '2024-09-12'
+    authors:
+      - Doe J
+    meeting: Example Congress 2024
+    format: oral
+  - uid: r-ecq6f4h2
+    type: publication
+    title: Example published paper with a free copy
+    date: '2024-05-31'
+    date_precision: month
+    authors:
+      - Doe J
+      - Roe AB
+    pub_type: article
+    article_kind: original
+    pub_status: published
+    venue: Fake Journal
+    doi: 10.0000/fake.1
+    open_copy_url: https://example.org/accepted-manuscript.pdf
+    open_copy_kind: accepted-manuscript
+  - uid: r-nklswcel
+    type: communication
+    title: Example poster
+    date: '2023-12-31'
+    date_precision: year
+    authors:
+      - Doe J
+    meeting: Example Meeting 2023
+    format: poster
+    abstract_published_in: Example Journal 12(S1)
+    url: https://example.org/abstracts/123
