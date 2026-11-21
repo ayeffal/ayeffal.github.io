@@ -19,6 +19,8 @@ Blog, analytics, trackers, comments, forms, custom domain.
 - Make the smallest change that fully solves the task.
 - No unrequested features, abstractions or dependencies.
 - End each reply with what you skipped or didn't verify.
+- Before any commit or push, run `git remote get-url origin`. If it isn't
+  `https://github.com/ayeffal/ayeffal.github.io.git`, stop and tell me.
 
 ## Privacy
 
@@ -34,3 +36,19 @@ Record each decision that is hard to reverse in `docs/decisions/` as a short num
 ## EGM
 
 EGM artifact directory: design/
+
+## Pending setup (remind me; remove each line once done)
+
+- NEXT, before design work: set up the user-level push guard (block `git push`
+  when a repo's origin doesn't match the expected remote for its folder).
+- BEFORE the first commit of generated data: create the hookify rule that blocks
+  commits containing DNI/CUIL patterns, absolute paths, usernames or
+  non-allowlisted fields.
+- WHEN the design doc is approved and building starts: install frontend-design,
+  modern-web-guidance and playwright (@claude-plugins-official, project scope).
+- AFTER the site scaffold exists: run claude-code-setup once.
+- LATER, after adding a few items by hand: use skill-creator for an
+  "add item → regenerate → review → push" skill.
+
+At the start of each session, if a trigger above has been met, tell me before
+doing anything else.
