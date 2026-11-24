@@ -22,6 +22,17 @@ ever committed.
   retired, because the export never carries ineligible items.
 - A released item missing from the export is an error in `sync`, never a
   silent removal. A withdrawn item becomes a tombstone (below).
+- **Withdrawal (added 2026-11-24).** To withdraw an item, the owner removes
+  consent in the vault and adds `withdrawn: <YYYY-MM-DD>` to the item's
+  manifest entry. Adding this field is the only change allowed to an existing
+  entry. For an item marked this way, a missing export record is expected,
+  not an error: `sync` keeps the item's last committed data and the build
+  writes a tombstone page with a withdrawal notice. An item with no page
+  (a list row only) simply loses its row; its manifest entry stays, so the
+  ID is never reused. An item marked
+  `withdrawn` that is still in the export is an error, so the two steps
+  cannot drift apart unnoticed. A tombstone still shows the title, so it is
+  never used for a privacy leak; a leak follows "Mistakes" below.
 
 **Mistakes.**
 - A history rewrite is allowed only for a privacy leak (a title, ID number,

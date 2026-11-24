@@ -79,4 +79,5 @@ Files:
 
 ## Open points
 
-- Whether `author_position` should appear on pages (excluded for now).
+- Resolved 2026-11-24: `author_position` does not appear on pages. It stays
+  under "Never copied", and the export does not carry it.

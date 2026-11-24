@@ -41,9 +41,20 @@ EGM artifact directory: design/
 
 - Design phase, no site code yet. Decisions 0001-0010 are in `docs/decisions/`; the summary and open items are in `design/concepts_brief.md`.
 - The vault agent has answered: consent lives in the vault, records are keyed by `uid`, export schema version 1 (`design/reply-from-vault-agent.md`, `design/reply-2-from-vault-agent.md`). The input schema and tests are in `sync/`. Decisions 0002, 0003, 0004, 0008 and 0009 are updated.
-- Next: run `/egm:egm-draft`. Approving the design triggers the plugin setup below.
+- `/egm:egm-draft` is in progress: `design/design_draft.md` has Overview,
+  Problem, Goals, Non-Goals and Open Questions, not yet approved. Settled on
+  2026-11-24: `author_position` stays out (0004), withdrawal via a manifest
+  `withdrawn` date (0009), the public CV PDF copied by `sync` (0008, pending
+  the vault agent), Search Console registration (0010).
+- Next: resolve the remaining open questions in the draft, approve Overview &
+  Goals, then draft the Technical Plan. Approving the design triggers the
+  plugin setup below.
 
 ## Pending setup (remind me; remove each line once done)
+
+- NEXT SESSION: hand `design/request-3-to-vault-agent.md` (public CV PDF path)
+  to the vault agent, and resume `/egm:egm-draft` in `design/design_draft.md`
+  (open questions, then the Overview & Goals approval gate).
 
 - BEFORE the first commit of generated data: create the hookify rule that blocks
   commits containing DNI/CUIL patterns, absolute paths, usernames or

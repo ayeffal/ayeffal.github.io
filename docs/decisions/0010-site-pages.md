@@ -67,6 +67,9 @@ page: the footer carries the contact line. No photo decision yet.
 - The owner writes the home and research text. It cannot come from the vault.
 - A new `github.io` site is indexed slowly. Registering it with search
   engines and linking it from ORCID and Scholar will help; neither is done.
+  Decided 2026-11-24: register the site with Google Search Console (ownership
+  proved by a meta tag or HTML file in the repo, then the sitemap submitted)
+  and import it into Bing Webmaster Tools. This adds no tracker to the pages.
 - Not verified: the form "University of San Martín" against UNSAM's own
   pages (they could not be read), and whether CONICET's 2016 affiliation
   resolution covers websites. It was confirmed only for publications. The
