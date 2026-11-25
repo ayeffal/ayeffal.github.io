@@ -15,7 +15,9 @@ Three layers, each with its own home:
 
 1. **Bibliographic fields, copied from the vault** through its export
    (0008). Only these may be copied:
-   - all item types: `uid`, `title`, `date`, `date_precision`, `authors`
+   - all item types: `uid`, `type` (`publication` or `communication`; it
+     decides which of the fields below are allowed), `title`, `date`,
+     `date_precision`, `authors`
    - papers: `pub_type`, `article_kind`, `pub_status`, `venue`, `doi`,
      `volume`, `pages`, `preprint_url`, `open_copy_url`, `open_copy_kind`
      (`open_copy_url` is an external link to a free copy, never a hosted

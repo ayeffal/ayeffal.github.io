@@ -1,7 +1,8 @@
 # Academic website
 
 *   **Author:** Abraham Yeffal
-*   **Status:** Draft
+*   **Status:** Draft (Overview & Goals approved 2026-11-25; Technical Plan
+    not started)
 *   **Date:** 2026-11-24
 
 --------------------------------------------------------------------------------
@@ -46,14 +47,14 @@ Three things make this harder than a plain personal page:
    one mistake can publish something that git history then keeps forever.
 2. **The same records feed the PDF CV.** If the site and the CV are kept
    separately, they drift apart.
-3. **Links must not break.** GitHub Pages cannot redirect, and academics
+3. **Links must not break.** GitHub Pages cannot do server-side redirects, and academics
    paste links to single items into CVs, forms and papers. A URL that moves
    or disappears breaks every saved copy.
 
 The proposed solution: the vault side exports only what the owner has
 approved; this repo copies only allowlisted fields from that export, checks
-every commit and every build for private data, and keeps a ledger so that no
-released URL can vanish.
+every commit and every build for private data, copies the public CV PDF only
+after scanning it, and keeps a ledger so that no released URL can vanish.
 
 ## Goals
 
@@ -64,6 +65,11 @@ Each goal states how it will be checked.
     `0000-0002-9645-6664` and the one Google Scholar profile (0009, 0010).
     Check: the build fails if a paper page lacks the tags or a page is missing
     from the sitemap.
+*   **Credible.** The home page shows the date of its last update; the
+    affiliation lines are the ones fixed in 0010; the site and the public CV
+    list the same papers, talks and posters, because both use the vault's one
+    eligibility rule (0008, 0010). Check: the build fails if the home page
+    lacks the last-updated date.
 *   **One source of truth.** Every paper, talk and poster shown on the site
     comes from the vault export. This repo adds only the owner's authored
     text (or a CC BY paper's abstract), the `id`, `related` links and `files`
@@ -71,21 +77,23 @@ Each goal states how it will be checked.
     and it reads only the export and the public CV PDF.
 *   **Private by construction.** No commit and no deploy goes through if the
     committed data holds a key not on the allowlist, an absolute path, a
-    username or a DNI/CUIL pattern. The same checks run before each commit and
+    username, a DNI/CUIL pattern, the plain form of the contact email, a phone
+    number or an address. The public CV PDF's text gets the same scan before
+    `sync` writes it (0008). The same checks run before each commit and
     again in the automatic build (0009). Committed PDFs and images (the CV,
     hosted files, the headshot) have their metadata stripped (0004, 0008,
     0010). Check: a test commit with each kind of leak, including a file with
     metadata, is refused by both.
 *   **Permanent URLs.** Any link to an item or page that has ever been
-    shared keeps reaching that item or page. GitHub Pages cannot redirect,
-    so URLs are chosen with foresight to never need changing, and an ID is
+    shared keeps reaching that item or page. GitHub Pages cannot do
+    server-side redirects, so URLs are chosen with foresight to never need changing, and an ID is
     never reused for a different item (0002). Check: the build fails if any
     URL in the committed ledger (the list of every URL ever published) has
     none of: a page, a tombstone (a page left at the URL saying the item was
     withdrawn), or a Quarto `aliases:` redirect to the page's new address,
     used only as a safety net when a page has to move.
 *   **Zero cost, no lock-in.** The site builds from a fresh clone with pinned
-    Quarto (tested with 1.11.9) and Python, and uses no paid service (0006).
+    Quarto (pinned to 1.11.9, not yet tested) and Python, and uses no paid service (0006).
     Check: a CI build from a clean checkout succeeds.
 *   **Adding an item takes under 10 minutes.** Measured from "the item is in
     the export" to "the change is pushed". Check: a timed walkthrough with the

@@ -11,8 +11,8 @@ locally and they are committed; the generator never reads the vault.
 
 ## Decision
 
-- The site is built with **Quarto**, pinned to a specific version (tested
-  with 1.11.9) in CI and in the repo docs.
+- The site is built with **Quarto**, pinned to a specific version (1.11.9,
+  not yet tested; corrected 2026-11-25) in CI and in the repo docs.
 - Each item that has a page lives in `<type>/<id>/index.qmd`, which builds
   to `/<type>/<id>/` as required by 0002.
 - List pages use Quarto listings from a data file. Rows without a page link

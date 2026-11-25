@@ -41,20 +41,18 @@ EGM artifact directory: design/
 
 - Design phase, no site code yet. Decisions 0001-0010 are in `docs/decisions/`; the summary and open items are in `design/concepts_brief.md`.
 - The vault agent has answered: consent lives in the vault, records are keyed by `uid`, export schema version 1 (`design/reply-from-vault-agent.md`, `design/reply-2-from-vault-agent.md`). The input schema and tests are in `sync/`. Decisions 0002, 0003, 0004, 0008 and 0009 are updated.
-- `/egm:egm-draft` is in progress: `design/design_draft.md` has Overview,
-  Problem, Goals, Non-Goals and Open Questions, not yet approved. Settled on
-  2026-11-24: `author_position` stays out (0004), withdrawal via a manifest
-  `withdrawn` date (0009), the public CV PDF copied by `sync` (0008, agreed
-  in reply 3; no CV builder yet), Search Console registration (0010), Quarto `aliases:`
-  as the redirect safety net (0002).
-- Next: resolve the remaining open questions in the draft, approve Overview &
-  Goals, then draft the Technical Plan. Approving the design triggers the
+- `/egm:egm-draft` is in progress: in `design/design_draft.md`, Overview,
+  Problem, Goals and Non-Goals were approved on 2026-11-25 and no open
+  questions remain. The settled items (CV PDF path from reply 3, Quarto
+  `aliases:`, CC BY abstracts checked via Crossref, headshot, co-author
+  requests, large files) are listed under "Settled during drafting".
+- Next: draft the Technical Plan. Approving the whole design triggers the
   plugin setup below.
 
 ## Pending setup (remind me; remove each line once done)
 
-- NEXT SESSION: resume `/egm:egm-draft` in `design/design_draft.md` (open
-  questions, then the Overview & Goals approval gate).
+- NEXT SESSION: resume `/egm:egm-draft` in `design/design_draft.md` with the
+  Technical Plan.
 
 - BEFORE the first commit of generated data: create the hookify rule that blocks
   commits containing DNI/CUIL patterns, absolute paths, usernames or
