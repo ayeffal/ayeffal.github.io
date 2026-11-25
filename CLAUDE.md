@@ -41,18 +41,14 @@ EGM artifact directory: design/
 
 - Design phase, no site code yet. Decisions 0001-0010 are in `docs/decisions/`; the summary and open items are in `design/concepts_brief.md`.
 - The vault agent has answered: consent lives in the vault, records are keyed by `uid`, export schema version 1 (`design/reply-from-vault-agent.md`, `design/reply-2-from-vault-agent.md`). The input schema and tests are in `sync/`. Decisions 0002, 0003, 0004, 0008 and 0009 are updated.
-- `/egm:egm-draft` is in progress: in `design/design_draft.md`, Overview,
-  Problem, Goals and Non-Goals were approved on 2026-11-25 and no open
-  questions remain. The settled items (CV PDF path from reply 3, Quarto
-  `aliases:`, CC BY abstracts checked via Crossref, headshot, co-author
-  requests, large files) are listed under "Settled during drafting".
-- Next: draft the Technical Plan. Approving the whole design triggers the
-  plugin setup below.
+- Design approved on 2026-11-25: `design/academic-website.md` (final;
+  `design/design_draft.md` is the working copy it was saved from). Summaries
+  are written site-side, `sync` generates committed pages, one writer per
+  file. Updates to 0004, 0006 and 0009 are step 10 of its Order of work.
+- Next: `/egm:egm-review design/academic-website.md`, then Step 0 (Quarto
+  spike) of the Detailed Implementation Plan.
 
 ## Pending setup (remind me; remove each line once done)
-
-- NEXT SESSION: resume `/egm:egm-draft` in `design/design_draft.md` with the
-  Technical Plan.
 
 - BEFORE the first commit of generated data: create the hookify rule that blocks
   commits containing DNI/CUIL patterns, absolute paths, usernames or
