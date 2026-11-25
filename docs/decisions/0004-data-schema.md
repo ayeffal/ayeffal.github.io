@@ -25,7 +25,14 @@ Three layers, each with its own home:
      programme")
 2. **Authored text, written in this repo**, one short file per item:
    an abstract or short summary in the owner's own words. This text is not
-   copied from the vault.
+   copied from the vault. Optional (changed 2026-11-24): an item may have
+   none. For a paper published under CC BY, the file may instead or also
+   hold the paper's real abstract, copied by the owner from the publisher,
+   with its license and source recorded next to it (0007). The file's front
+   matter then carries `abstract_license_url` (as Crossref returns it),
+   `abstract_source` (the DOI) and `abstract_license_checked` (the
+   `YYYY-MM-DD` date of the check). These fields are written only by the
+   check described in 0007, never by hand.
 3. **Site-only fields, in this repo**: `id` (0003), `related` (links to other
    items), and any `files` entries.
 
@@ -59,12 +66,13 @@ Files:
 - Link every file to personal cloud storage: rejected, because links break
   and the permanence goal fails. Allowed only for large files.
 - Copy publisher abstracts: not the default, because rights differ by
-  publisher. A summary in the owner's words avoids the question.
+  publisher. A summary in the owner's words avoids the question. Allowed
+  only for CC BY papers (2026-11-24).
 
 ## Consequences
 
-- Each item needs a manual authored text file, which adds to the
-  under-10-minutes goal.
+- An item with a page usually needs a manual authored text file, which adds
+  to the under-10-minutes goal. An item without one is still a list row.
 - Changing the allowlist later is easy to widen and slow to narrow, because
   data already committed stays in history.
 - The CLAUDE.md "Pending setup" hookify rule must check for fields not on

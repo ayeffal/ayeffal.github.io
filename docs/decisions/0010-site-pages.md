@@ -53,7 +53,9 @@ paper and the supervisor's English CV):
   supervisor's CV: `Teaching Assistant (Ayudante de Segunda)`.
 
 No teaching page (the owner is not teaching this year). No separate contact
-page: the footer carries the contact line. No photo decision yet.
+page: the footer carries the contact line. Decided 2026-11-24: the home
+page shows a headshot the owner holds the rights to (own photo, or the
+photographer's written permission), with its metadata stripped before commit.
 
 ## Alternatives
 

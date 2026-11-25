@@ -18,7 +18,9 @@ CVs, application forms, emails, slides and papers.
   - List: `/papers/`, `/talks/`, `/posters/`
   - Item: `/papers/<id>/`, `/talks/<id>/`, `/posters/<id>/`
 - An item gets a page only when it has content to put on it: a summary
-  written by the owner, or a hosted file, recording or slides. Without
+  written by the owner, a hosted file, recording or slides, or (for a paper
+  published under CC BY) the paper's own abstract (added 2026-11-24, 0007).
+  Without
   these, it is a row on its list page linking straight to the publisher
   (DOI) or its public `url`. Every public item still gets an ID, so its page
   can appear later at the reserved URL. Rows with a page show a small icon.
@@ -30,6 +32,14 @@ CVs, application forms, emails, slides and papers.
   titles.
 - A published URL is never removed, renamed or reused. A withdrawn paper keeps
   its page with a withdrawal notice.
+- **Safety net: Quarto `aliases:` (added 2026-11-24).** If a page must move
+  anyway (an item's type is corrected, a non-item page is renamed), its new
+  source file lists the old path under `aliases:`. Quarto then writes a small
+  HTML file at the old path whose JavaScript sends the browser to the new
+  page, keeping any `#anchor` and `?query`. This is a client-side redirect,
+  which GitHub Pages can host. It is a fallback, not a licence to move pages:
+  URLs are still chosen never to need it, and a withdrawn item still gets a
+  tombstone, not a redirect.
 - `/es/` stays reserved (see 0001).
 - The format of `<id>` is set in 0003.
 - **Eligible statuses** for papers: published, in press, preprint. Work in
@@ -52,6 +62,10 @@ CVs, application forms, emails, slides and papers.
   excluded, then added on 2026-11-21 because the owner may upload them.
 - Titles or dates in URLs: rejected, because titles change and preprint and
   published dates differ.
+- Relying on `aliases:` instead of stable URLs: rejected, because the redirect
+  page is JavaScript only (no meta refresh, no canonical link), so clients
+  that do not run JavaScript, such as some citation managers and crawlers,
+  see an empty page.
 - Showing unpublished work with a "preprint soon" label: rejected, because it
   announces work before the owner or co-authors choose to.
 
@@ -59,6 +73,11 @@ CVs, application forms, emails, slides and papers.
 
 - Every paper, talk and poster ID, once public, is permanent, whether or not
   its page exists yet.
+- The ledger check (0009) accepts a released URL if it has a page, a
+  tombstone, or an alias redirect file. The check must look at the built
+  file itself: Quarto silently skips an alias that would overwrite a real
+  page, and with a leading-`/` alias it may not even warn (read from Quarto's
+  source, not tested).
 - No empty item pages. A reader cannot tell from a row alone whether it has a
   page, so the icon shows it.
 - Papers, talks and posters need enough fields to fill a page (0004).

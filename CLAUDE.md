@@ -44,17 +44,17 @@ EGM artifact directory: design/
 - `/egm:egm-draft` is in progress: `design/design_draft.md` has Overview,
   Problem, Goals, Non-Goals and Open Questions, not yet approved. Settled on
   2026-11-24: `author_position` stays out (0004), withdrawal via a manifest
-  `withdrawn` date (0009), the public CV PDF copied by `sync` (0008, pending
-  the vault agent), Search Console registration (0010).
+  `withdrawn` date (0009), the public CV PDF copied by `sync` (0008, agreed
+  in reply 3; no CV builder yet), Search Console registration (0010), Quarto `aliases:`
+  as the redirect safety net (0002).
 - Next: resolve the remaining open questions in the draft, approve Overview &
   Goals, then draft the Technical Plan. Approving the design triggers the
   plugin setup below.
 
 ## Pending setup (remind me; remove each line once done)
 
-- NEXT SESSION: hand `design/request-3-to-vault-agent.md` (public CV PDF path)
-  to the vault agent, and resume `/egm:egm-draft` in `design/design_draft.md`
-  (open questions, then the Overview & Goals approval gate).
+- NEXT SESSION: resume `/egm:egm-draft` in `design/design_draft.md` (open
+  questions, then the Overview & Goals approval gate).
 
 - BEFORE the first commit of generated data: create the hookify rule that blocks
   commits containing DNI/CUIL patterns, absolute paths, usernames or

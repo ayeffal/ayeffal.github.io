@@ -21,8 +21,10 @@ committed files into pages with Quarto and deploys them (0006, 0009). The
 build never sees the vault or the export.
 
 A paper, talk or poster gets its own permanent page at `/<type>/<id>/` only
-when it has a summary written by the owner or a hosted file. Otherwise it is
-a row on its list page that links to the publisher or to a public page (0002).
+when it has a summary written by the owner, a hosted file, or (for a CC BY
+paper) its real abstract. Otherwise it is a row on its list page that links
+to the publisher or to a public page (0002). The CV page shows the public CV
+PDF once the vault side builds it; until then it is a placeholder (0008).
 The site is English-only, with `/es/` reserved (0001).
 
 Decisions 0001 to 0010 in `docs/decisions/` are the source for this design.
@@ -64,16 +66,24 @@ Each goal states how it will be checked.
     from the sitemap.
 *   **One source of truth.** Every paper, talk and poster shown on the site
     comes from the vault export. This repo adds only the owner's authored
-    text, the `id`, `related` links and `files` entries (0004). Check: `sync`
-    is the only program that writes item data, and it reads only the export.
+    text (or a CC BY paper's abstract), the `id`, `related` links and `files`
+    entries (0004). Check: `sync` is the only program that writes item data,
+    and it reads only the export and the public CV PDF.
 *   **Private by construction.** No commit and no deploy goes through if the
     committed data holds a key not on the allowlist, an absolute path, a
     username or a DNI/CUIL pattern. The same checks run before each commit and
-    again in the automatic build (0009). Check: a test commit with each kind
-    of leak is refused by both.
-*   **Permanent URLs.** A released URL is never removed, renamed or reused
-    (0002). Check: the build fails if any URL in the committed ledger has no
-    page or tombstone.
+    again in the automatic build (0009). Committed PDFs and images (the CV,
+    hosted files, the headshot) have their metadata stripped (0004, 0008,
+    0010). Check: a test commit with each kind of leak, including a file with
+    metadata, is refused by both.
+*   **Permanent URLs.** Any link to an item or page that has ever been
+    shared keeps reaching that item or page. GitHub Pages cannot redirect,
+    so URLs are chosen with foresight to never need changing, and an ID is
+    never reused for a different item (0002). Check: the build fails if any
+    URL in the committed ledger (the list of every URL ever published) has
+    none of: a page, a tombstone (a page left at the URL saying the item was
+    withdrawn), or a Quarto `aliases:` redirect to the page's new address,
+    used only as a safety net when a page has to move.
 *   **Zero cost, no lock-in.** The site builds from a fresh clone with pinned
     Quarto (tested with 1.11.9) and Python, and uses no paid service (0006).
     Check: a CI build from a clean checkout succeeds.
@@ -92,28 +102,18 @@ Each goal states how it will be checked.
     as a page or a row, unless it has a preprint, and then only as that
     preprint. There is no override (0002, 0009).
 *   Building the export or the CV. Both belong to the vault-side repository
-    (0008). This design only reads the export and, where decided, hosts the
-    public CV PDF.
+    (0008). This design only reads the export and hosts the public CV PDF.
+*   Hosting files over 5 MB on the site (0009). They are external links;
+    Zenodo is chosen case by case (0004).
+*   Showing or adapting a publisher abstract for a paper that is not CC BY
+    (0007).
 *   The individual CV and its contact details. They never enter this repo
     (0008).
 *   Reading the vault from this repo, at any time (CLAUDE.md, 0008).
 
 ## Open Questions
 
-*   **Vault agent: path for the public CV PDF (0008).** The design has `sync`
-    copy the public CV from a second fixed path next to the export. The vault
-    agent has not agreed to it or named the path yet. Request drafted, not yet sent:
-    `design/request-3-to-vault-agent.md`.
-*   **Quarto `aliases:`** may provide client-side redirects, which would
-    soften the "no redirects" premise of 0002. Not verified.
-*   **Co-author removal procedure.** Co-author names are third-party data. No
-    procedure for a removal request is written.
-*   **Authored summaries that paraphrase a publisher abstract** might carry
-    third-party rights, and CC BY 4.0 cannot be withdrawn (0004, 0007). No
-    checking rule is written.
-*   **Larger files.** Zenodo remains an option for files over the 5 MB cap
-    (0009). Not decided.
-*   **Photo on the home page** (0010). No decision.
+None remaining.
 
 ### Settled during drafting (2026-11-24)
 
@@ -129,10 +129,35 @@ These go into the Technical Plan.
     with a page becomes a tombstone; an item with only a list row loses its
     row. The manifest entry stays, so the ID is never reused.
 *   **Public CV PDF.** `sync` copies it from a fixed vault-side path, strips
-    its metadata and scans its text before writing it (0008). The path still
-    needs the vault agent's agreement.
+    its metadata and scans its text before writing it (0008). Agreed path:
+    `shared/cv/out/cv-public.pdf`. No CV builder exists yet, so a missing
+    file means "no CV yet": `sync` skips it and the CV page is a placeholder.
 *   **Search Console.** Register with Google Search Console and import into
     Bing Webmaster Tools, once the site is live (0010).
+*   **Quarto `aliases:`** is the safety net for a page that has to move: it
+    writes a JavaScript redirect file at the old path, which GitHub Pages
+    serves. Stable URLs stay the rule; tombstones stay for withdrawals (0002).
+*   **Co-author removal request.** A published author list is public record,
+    so citations stay as published. The co-author's name is removed from the
+    owner's own text and hosted files, and a hosted file they co-own is taken
+    down (its URL becomes a tombstone).
+*   **Larger files.** Files over the 5 MB cap (0009) are not hosted on the
+    site. Zenodo (free, permanent, gives a DOI) stays an option the owner
+    decides case by case; the item page then links to it.
+*   **Summaries and abstracts (0007).** Abstracts are free to read but not
+    free to reuse: they stay under publisher or author copyright unless the
+    paper is CC BY. So the owner's summaries are written fresh in plain
+    language, never reworded from the abstract. A paper published under
+    CC BY may also show its real abstract, labelled with that license and
+    its source, and that abstract alone gives the item a page (0002).
+    CC BY status is checked against Crossref by DOI when the abstract is
+    added; the license URL, DOI and check date are recorded in the authored
+    file, and the build (offline) fails if they are missing or not CC BY. A
+    summary is optional: a missing one is never an error and never blocks
+    `sync`, the build or the item's list row.
+*   **Photo.** The home page shows a headshot (0010). The owner must hold its
+    rights (own photo, or the photographer's written permission), and its
+    metadata is stripped before commit.
 
 ### Superseded lines in the brief
 

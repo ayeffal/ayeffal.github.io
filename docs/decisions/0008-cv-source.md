@@ -38,13 +38,19 @@ numbers do not belong on a CV.
     vault-side repository, so site and CV share one eligibility rule. Format:
     `design/reply-from-vault-agent.md`. Sample: `design/site-export.sample.yaml`.
     `sync` fails on any other `schema_version`.
-  - Added 2026-11-24, pending the vault agent's agreement: the vault side
-    also writes the **public CV PDF** to a second fixed path next to the
-    export. `sync` copies only that file and the export, never the
-    individual CV. It strips the PDF metadata and scans the PDF's text with
-    the 0009 checks (paths, usernames, DNI/CUIL, phone numbers, addresses,
-    and the plain form of any email address) before writing it. A failed
-    scan stops `sync`.
+  - Added 2026-11-24, agreed the same day (`design/reply-3-from-vault-agent.md`):
+    the vault side also writes the **public CV PDF** to
+    `shared/cv/out/cv-public.pdf`, next to the export. Only the public
+    variant is ever written there. `sync` copies only that file and the
+    export, never the individual CV. It strips the PDF metadata and scans the
+    PDF's text with the 0009 checks (paths, usernames, DNI/CUIL, phone
+    numbers, addresses, and the plain form of any email address) before
+    writing it. A failed scan stops `sync`.
+  - **No CV builder exists yet**, and the owner keeps it deferred. Until the
+    file exists, `sync` treats a missing PDF as "no CV yet": it skips it
+    without an error, and the CV page stays a placeholder. The PDF prints its
+    build date, so a rebuild on a later day may change the file even with no
+    note change.
 - Site contact format: an institutional email written with " (at) " and
   " (dot) " in place of the symbols, no `mailto:` link. The address, written only in
   the obfuscated form, is `ayeffal (at) unsam (dot) edu (dot) ar`. The
