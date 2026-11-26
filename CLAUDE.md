@@ -45,14 +45,18 @@ EGM artifact directory: design/
   `design/design_draft.md` is the working copy it was saved from). Summaries
   are written site-side, `sync` generates committed pages, one writer per
   file. Updates to 0004, 0006 and 0009 are step 10 of its Order of work.
-- Next: `/egm:egm-review design/academic-website.md`, then Step 0 (Quarto
-  spike) of the Detailed Implementation Plan.
+- EGM review in progress (interactive, all rubrics). Stage 5 done
+  (`design/zoom_out_report.md`); its findings were applied to the design on
+  2026-11-26 (pre-push hook, ledger holds page URLs only, no `aliases:`,
+  Phase 2 for CC BY abstracts and hosted files). Next: Stages 6 to 9, then
+  Step 0 (Quarto spike) of the Detailed Implementation Plan.
 
 ## Pending setup (remind me; remove each line once done)
 
-- BEFORE the first commit of generated data: create the hookify rule that blocks
-  commits containing DNI/CUIL patterns, absolute paths, usernames or
-  non-allowlisted fields.
+- BEFORE the first commit of generated data: create the hookify rules (design
+  file 33): one blocks shell writes to owner files, one blocks bypassing the
+  git hooks (`--no-verify`, `core.hooksPath`, edits to `.githooks/`). The
+  privacy patterns live only in `checks/privacy.py`.
 - WHEN the design doc is approved and building starts: install frontend-design,
   modern-web-guidance and playwright (@claude-plugins-official, project scope).
 - AFTER the site scaffold exists: run claude-code-setup once.

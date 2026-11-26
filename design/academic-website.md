@@ -83,15 +83,17 @@ Each goal states how it will be checked.
     again in the automatic build (0009). Committed PDFs and images (the CV,
     hosted files, the headshot) have their metadata stripped (0004, 0008,
     0010). Check: a test commit with each kind of leak, including a file with
-    metadata, is refused by both.
+    metadata, is refused by the pre-commit hook; the same commit made with
+    `--no-verify` is refused by the pre-push hook.
 *   **Permanent URLs.** Any link to an item or page that has ever been
     shared keeps reaching that item or page. GitHub Pages cannot do
     server-side redirects, so URLs are chosen with foresight to never need changing, and an ID is
     never reused for a different item (0002). Check: the build fails if any
-    URL in the committed ledger (the list of every URL ever published) has
-    none of: a page, a tombstone (a page left at the URL saying the item was
-    withdrawn), or a Quarto `aliases:` redirect to the page's new address,
-    used only as a safety net when a page has to move.
+    URL in the committed ledger (the list of every page URL ever published)
+    has neither a page nor a tombstone (a page left at the URL saying the
+    item was withdrawn). Pages do not move (2026-11-26). Hosted files are
+    not in the ledger: a file can be taken down (see "Co-author removal
+    request").
 *   **Zero cost, no lock-in.** The site builds from a fresh clone with pinned
     Quarto (pinned to 1.11.9, not yet tested) and Python, and uses no paid service (0006).
     Check: a CI build from a clean checkout succeeds.
@@ -141,14 +143,21 @@ These go into the Technical Plan.
     `shared/cv/out/cv-public.pdf`. No CV builder exists yet, so a missing
     file means "no CV yet": `sync` skips it and the CV page is a placeholder.
 *   **Search Console.** Register with Google Search Console and import into
-    Bing Webmaster Tools, once the site is live (0010).
-*   **Quarto `aliases:`** is the safety net for a page that has to move: it
-    writes a JavaScript redirect file at the old path, which GitHub Pages
-    serves. Stable URLs stay the rule; tombstones stay for withdrawals (0002).
+    Bing Webmaster Tools, once the site is live (0010). Ownership is shown
+    with the verification `<meta>` tag in the home shell, not an uploaded
+    file.
+*   **Pages do not move** (changed 2026-11-26, after the Stage 5 review). The
+    earlier Quarto `aliases:` safety net (0002) had no input path: the
+    manifest is append-only and generated pages are tool files. If the
+    derived type disagrees with the manifest, the export is fixed. If a real
+    move is ever needed, it is designed then; `aliases:` remains the likely
+    tool. Tombstones stay for withdrawals.
 *   **Co-author removal request.** A published author list is public record,
     so citations stay as published. The co-author's name is removed from the
     owner's own text and hosted files, and a hosted file they co-own is taken
-    down (its URL becomes a tombstone).
+    down: it is deleted and its `files` entry removed, and its URL stops
+    working (only page URLs are permanent). If that leaves the page with no
+    content, the owner writes a summary or withdraws the item.
 *   **Larger files.** Files over the 5 MB cap (0009) are not hosted on the
     site. Zenodo (free, permanent, gives a DOI) stays an option the owner
     decides case by case; the item page then links to it.
@@ -190,7 +199,9 @@ Reconciled at finalisation (2026-11-25, each decided by the owner):
     (0002, 0009).
 *   "papers first would be the smallest start." Current: all three types
     and `related` are built at once; the first launch adds every item as a
-    row first, then pages one item at a time ("Adding an item").
+    row first, then pages one item at a time ("Adding an item"). CC BY
+    abstracts and hosted item files are Phase 2, built when the first item
+    needs them (2026-11-26, see "Order of work").
 *   "A program in the vault repo writes one export file." Current: a
     separate private vault-side repository (`vault-export`) writes it
     (reply 1, reply 3).
@@ -262,6 +273,11 @@ Reconciled at finalisation (2026-11-25, each decided by the owner):
 `generate` is one Python module used in two places: `sync` calls it to
 write files, and CI calls it with `--check` to compare without writing.
 Because it reads only committed files, CI can run it without the vault.
+It never opens files itself: the caller passes a reader function
+(`read(path) -> bytes | None`). The pre-commit hook reads the staged
+version, the pre-push hook and CI read a commit, and `sync` reads the disk
+with its import outputs laid over it. So each check compares like with
+like, and a file staged only in part cannot give a false result.
 This keeps the two programs of 0009: `sync` (local, the only reader of the
 export) and `build` (CI: checks, `generate --check`, render, deploy).
 
@@ -281,25 +297,26 @@ cv/cv-public.pdf            written by sync import (absent until a CV exists)
 authored/home.md            OWNER: home text
 authored/research.md        OWNER: research text
 authored/<type>/<id>.md     OWNER: an item's summary, related, files, abstract
-authored/<type>/<id>.es.md  OWNER, later: Spanish text (0001); not built yet
 images/headshot.jpg         owner-added, metadata stripped
 data/manifest.yml           OWNER: one entry per public item (append-only)
 data/items.yml              written by sync import: export records kept
 data/cv.yml                 written by sync import: date of the current CV
 data/abstract-licenses.yml  written by the abstract-license tool only
-data/ledger.txt             written by generate: every URL ever published
+data/ledger.txt             written by generate: every page URL ever published
 sync/                       export_schema.py (exists), sync, generate,
                             abstract-license tool, metadata-strip tool, tests
 checks/                     pre-commit and CI checks, post-render checks, tests
 .githooks/pre-commit        runs checks on the staged files
+.githooks/pre-push          runs checks on every commit being pushed
 .github/workflows/build.yml CI: checks, generate --check, render, deploy
 requirements.txt            pinned Python packages
 LICENSE, LICENSE-CONTENT.md MIT for code; CC BY 4.0 notice for content (0007)
 ```
 
-Quarto renders only `.qmd` files (`render: ["**/*.qmd"]` in
-`_quarto.yml`), so the `.md` files in `authored/`, `design/` and `docs/`
-never become pages. A post-render check makes sure of it (below). Every
+Quarto renders only an explicit list of `.qmd` files (`render:` in
+`_quarto.yml`: the home, research and CV shells and the `.qmd` files under
+`papers/`, `talks/` and `posters/`), so the `.md` files in `authored/`,
+`design/` and `docs/` never become pages. A post-render check makes sure of it (below). Every
 page lives at `<dir>/index.qmd`, so it builds to `<dir>/index.html` and is
 reached at `<dir>/`, as 0002 requires.
 
@@ -384,10 +401,11 @@ license.
 **`data/cv.yml`** (sync import). `date: "YYYY-MM-DD"`, the day `sync` last
 wrote a changed CV PDF. Absent until a CV exists.
 
-**`data/ledger.txt`** (generate). One site path per line, for example
-`/papers/surname-2026-tag/` or `/posters/surname-2024-tag/poster.pdf`.
-`generate` writes the old lines plus every page and hosted file it now
-produces, sorted. A line is never removed.
+**`data/ledger.txt`** (generate). One page path per line, for example
+`/papers/surname-2026-tag/`. `generate` writes the old lines plus every
+page it now produces, sorted. A line is never removed. Hosted files and
+the CV PDF are not listed: their URLs are kept stable by habit, not by a
+check, so a file can be taken down.
 
 **`<type>/listing.yml`** (generate). Quarto listing contents. Every value is
 a display string worked out in Python: `title`, `citation` (authors, venue,
@@ -402,8 +420,8 @@ order is kept.
 
 *   **Type**: `publication` → `papers`; `communication` with `format: poster`
     → `posters`; `oral` or `lecture` → `talks`. If this disagrees with the
-    manifest's `type`, it is an error. The owner then decides whether the
-    page moves (with a Quarto `aliases:` entry, 0002) or the export is fixed.
+    manifest's `type`, it is an error, fixed in the export (pages do not
+    move).
 *   **Page or row**: an item gets a page when its authored file has a
     non-empty body, at least one `files` entry, or (papers) an `abstract`.
     Otherwise it is a row only.
@@ -440,11 +458,12 @@ order is kept.
 | Page loses all content (authored file emptied or deleted) | Error: the URL is in the ledger. The owner restores the content or withdraws the item. |
 | Manifested item missing from the export, not withdrawn | Error (0009). |
 | Item marked `withdrawn` but still in the export | Error (0009). |
-| Item withdrawn | Tombstone if it had a page; otherwise the row goes. The manifest entry stays. |
+| Item withdrawn | Tombstone if it had a page; otherwise the row goes. The manifest entry stays. Its hosted files are deleted by the owner. |
+| Hosted file taken down (Phase 2) | The owner deletes the file and its `files` entry. Its URL stops working. If the page has no content left, it is the "page loses all content" error above. |
 | `related` names an item not in the manifest | Error. |
 | Export `schema_version` is not 1 | Error, nothing written (0003). |
 | CV PDF appears or changes | Stripped, scanned, written with a new `data/cv.yml` date. A failed scan stops `sync`. |
-| CV PDF unchanged apart from metadata | Nothing written. |
+| CV PDF unchanged apart from metadata | Nothing written. How "unchanged" is decided depends on Step 0 #10. |
 
 `sync` computes every output and runs every check in memory before writing
 anything, then writes each file through a temporary file and a rename. Its
@@ -456,17 +475,24 @@ writes nothing. `sync` refuses to run if `git config core.hooksPath` is not
 ### Checks
 
 **`checks`** run in the pre-commit hook (on the staged version of each
-file) and again in CI (on the pushed commit):
+file), in the pre-push hook (on every commit being pushed) and again in CI
+(on the pushed commit):
 
 1.  **Allowlist.** `data/items.yml` passes `sync/export_schema.py`;
     `data/manifest.yml`, `data/cv.yml`, `data/abstract-licenses.yml` and the
     authored front matter pass their own schemas, which reject unknown keys.
-2.  **Privacy scan** of every tracked text file: absolute paths
-    (`X:\`, `/Users/`, `/home/`), DNI and CUIL patterns, any email address in
-    plain form, phone-number patterns, and street-address words (`calle`,
-    `piso`, `depto`, Argentine postal codes). The username check runs only in
-    the pre-commit hook, using the machine's current username and home path,
-    because the username is in no tracked file and CI cannot know it.
+2.  **Privacy scan** of every text file that can carry vault data or is
+    published: `data/`, `authored/`, the generated pages and listings, the
+    shells (`*.qmd`, `_quarto.yml`, `_includes/`), `README.md` and
+    `LICENSE*`. The scope is one list next to the patterns. Code, tests,
+    `design/`, `docs/` and `.github/` are not scanned: they contain the
+    patterns themselves and never receive vault data (CLAUDE.md's privacy
+    rules cover them). The scan looks for absolute paths, DNI and CUIL
+    patterns, any email address in plain form, phone-number patterns, and
+    street-address words and Argentine postal codes. The username check
+    runs only in the local hooks, using the machine's current username and
+    home path, because the username is in no tracked file and CI cannot
+    know it.
     Known false positives (the ORCID iD, DOIs, `YYYY-MM-DD` dates) are exempt
     by pattern, in one list in the code. Error messages name file and line,
     never the matched text.
@@ -474,22 +500,21 @@ file) and again in CI (on the pushed commit):
     no metadata (PDF Info dictionary and XMP; image EXIF and XMP). Each PDF's
     text is extracted and gets the scan in 2. A poster that prints co-author
     emails is therefore refused until the emails are removed.
-4.  **Abstracts**: every authored `abstract` has an entry in
+4.  **Abstracts** (Phase 2): every authored `abstract` has an entry in
     `data/abstract-licenses.yml` whose `doi` matches the item and whose URL
     is CC BY. No network call.
 5.  **Append-only**: the manifest and the ledger, compared with `HEAD` in
-    the hook and with the previously pushed commit in CI.
+    the pre-commit hook, with each commit's parent in the pre-push hook, and
+    with the previously pushed commit in CI.
 6.  **`generate --check`**: regenerate in memory and compare with the
     committed generated files; any difference fails.
 
 **Post-render checks** (CI only, after `quarto render`):
 
-*   Every ledger path exists in `_site` as a page, a tombstone or a Quarto
-    alias redirect file. This is checked on the built file, because Quarto
-    silently skips an alias that would overwrite a page (0002).
+*   Every ledger path exists in `_site` as a page or a tombstone.
 *   Every non-tombstone paper page has `citation_title`, `citation_author`
     and `citation_publication_date`.
-*   `sitemap.xml` lists every built page except alias redirect files.
+*   `sitemap.xml` lists every built page.
 *   The home page shows "Last updated YYYY-MM-DD". CI passes the date of the
     last commit to Quarto as metadata (`-M`); the home shell prints it.
 *   `_site` holds nothing from `design/`, `docs/`, `data/`, `authored/`,
@@ -499,16 +524,23 @@ file) and again in CI (on the pushed commit):
     Quarto's default Bootstrap theme: some Bootswatch themes import Google
     Fonts.
 
-**What the hook cannot do.** The repo is public. Once a commit is pushed,
+**What the hooks cannot do.** The repo is public. Once a commit is pushed,
 GitHub shows it, whatever CI decides; CI can stop the deploy, not the
-exposure. The pre-commit hook is therefore the real privacy gate, and CI is
+exposure. The local hooks are therefore the real privacy gate, and CI is
 the backstop for the deploy. GitHub offers no server-side hook that could
-refuse a push on github.com.
+refuse a push on github.com. The pre-commit hook can be skipped with
+`--no-verify`; the pre-push hook re-checks every commit in the push, so a
+skipped commit is still caught before it leaves the machine. Both hooks
+can be skipped on purpose, and neither runs in a clone where
+`core.hooksPath` is not set. Rejected for now (2026-11-26): a private
+source repo whose CI pushes only the built site to the public repo. It
+closes this gap but adds a second repo and a deploy secret, which one
+owner committing from one machine does not need.
 
 ### Site configuration
 
 *   `_quarto.yml`: website project, `site-url: https://ayeffal.github.io/`,
-    `output-dir: _site`, `render: ["**/*.qmd"]`, default theme, search
+    `output-dir: _site`, the explicit `render:` list, default theme, search
     off (five pages need none), navbar with Home, Research, Papers, a "Talks
     and posters" menu (Talks, Posters) and CV.
 *   Footer: the contact line `ayeffal (at) unsam (dot) edu (dot) ar` (no
@@ -523,8 +555,8 @@ refuse a push on github.com.
 
 ### CI workflow
 
-On push to `main`: check out with full history (needed for the
-append-only check), set up Python 3.12 and install the pinned
+On push to `main` (or a manual run): check out with full history (needed for the
+append-only check), set up Python 3.13 and install the pinned
 `requirements.txt` (PyYAML, pypdf, Pillow), run `checks` and
 `generate --check`, install Quarto 1.11.9 with `quarto-dev/quarto-actions`,
 render with the last-commit date, run the post-render checks, then upload
@@ -535,12 +567,13 @@ the repo's Pages source to "GitHub Actions".
 
 1.  In the vault: mark the item public; run the vault-side export.
 2.  Add its manifest entry (`uid` from the vault note, `type`, a new `id`).
-3.  Optional: write `authored/<type>/<id>.md`. For a CC BY abstract, paste
-    it and run the abstract-license tool.
-4.  Optional: put a file in `staging/`, run the metadata-strip tool into
-    `<type>/<id>/`, and list it under `files`.
+3.  Optional: write `authored/<type>/<id>.md`. For a CC BY abstract
+    (Phase 2), paste it and run the abstract-license tool.
+4.  Optional (Phase 2): put a file in `staging/`, run the metadata-strip
+    tool into `<type>/<id>/`, and list it under `files`.
 5.  Run `sync`; preview locally with `quarto preview` if wanted.
-6.  Commit (the hook runs the checks) and push (CI deploys).
+6.  Commit (the pre-commit hook runs the checks) and push (the pre-push
+    hook checks again; CI deploys).
 
 **Suggested order for the first launch (decided 2026-11-25).** Add every
 public item as a row first (steps 1, 2, 5, 6 only), so the site launches
@@ -553,13 +586,20 @@ data. This is the owner's habit, not a rule the code enforces.
 
 Applied only after the design is approved:
 
+*   **0002** (added 2026-11-26): the `aliases:` safety net is withdrawn;
+    pages do not move; the ledger holds page URLs only, so a hosted file can
+    be taken down.
 *   **0004**: the license record moves to `data/abstract-licenses.yml`
     (above); `related` and `files` live in the authored file's front matter.
 *   **0006**: generation is a separate step that reads only committed files;
-    CI reruns it and compares. Pages are still committed.
-*   **0009**: `build` also runs `generate --check`; the hook, not CI, is the
-    privacy gate for what reaches GitHub; `sync` refuses to run without the
-    hook.
+    CI reruns it and compares. Pages are still committed. The "CV advantage
+    of one toolchain" lapsed with 0008 (the CV is built on the vault side);
+    Quarto stays for maintainability from Python and R and for the navbar,
+    theme, listings and sitemap (2026-11-26).
+*   **0009**: `build` also runs `generate --check`; the local hooks, not CI,
+    are the privacy gate for what reaches GitHub; a pre-push hook re-checks
+    every pushed commit (2026-11-26); `sync` refuses to run without the
+    hooks.
 
 ### Risks and unverified points
 
@@ -575,10 +615,12 @@ Applied only after the design is approved:
     it.
 *   Google Scholar may ignore, or wrongly merge, a page that carries citation
     tags but not the full text. Not verified.
-*   The pre-commit hook must be enabled once per clone
-    (`git config core.hooksPath .githooks`); `sync` enforces it, but a commit
-    made without running `sync` (a typo fix in `authored/`) relies on it
-    being set.
+*   The hooks must be enabled once per clone
+    (`git config core.hooksPath .githooks`, which covers both); `sync`
+    enforces it, but a commit made without running `sync` (a typo fix in
+    `authored/`) relies on it being set.
+*   `strip_pdf` may not give the same bytes on every run (pypdf may write a
+    new file `/ID`). Step 0 #10 tests it.
 
 ## Alternatives Considered
 
@@ -643,9 +685,12 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
     generated locally anyway. A Python renderer would mean writing the
     navbar, listings and sitemap by hand.
 *   **Reason for Rejection**: Rejected by author (0006): Quarto is maintainable
-    in Python and R and can also make PDFs. The brief records the
-    Python-renderer option as "not adopted" without a reason; the reason given
-    here is the one that follows from 0006.
+    from Python and R, and gives the navbar, theme, listings and sitemap
+    without hand-written HTML. 0006 also counted one toolchain for the site
+    and the CV; that reason lapsed when 0008 moved the CV build to the vault
+    side (noted 2026-11-26). Python now writes every page body, row, citation
+    tag and tombstone, so Quarto's share is small. If several Step 0 items
+    fail, a Python renderer is reconsidered instead of stacking fallbacks.
 
 ### Alternative E: Copy all vault fields, filter at render time
 
@@ -696,7 +741,8 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
 | List pages with anchors only | Anchors are not permanent, citable addresses. | 0002 |
 | Item pages for every type or item | Near-empty pages look worse than a row. | 0002 |
 | Titles or dates in URLs | Titles change; preprint and published dates differ. | 0002 |
-| `aliases:` instead of stable URLs | JavaScript-only redirects; clients without JavaScript see an empty page. | 0002 |
+| `aliases:` instead of stable URLs | JavaScript-only redirects; clients without JavaScript see an empty page. (Since 2026-11-26 `aliases:` is not used at all.) | 0002 |
+| Private source repo deploying to the public repo | Closes the `--no-verify` gap, but adds a second repo and a deploy secret; a pre-push hook is enough for one owner on one machine. | This plan (2026-11-26) |
 | Unpublished work as "preprint soon" | Announces work before the owner and co-authors choose to. | 0002 |
 | DOI, opaque or title-slug IDs; no year; type suffix; IDs unique across types | No DOI for talks; unreadable; titles change; tags collide; the path already gives the type. | 0003 |
 | ZotLit `zotero-key` as record key | Registry notes are not ZotLit-managed; the vault's `uid` is used. | 0003 |
@@ -737,7 +783,16 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
 *   Tests use the standard `unittest` module and fake data only. Fake leak
     values (DNI, phone, email) are built at run time from pieces (for
     example `"12" + "." + "345" + "." + "678"`), so no tracked file contains
-    one and the privacy scan needs no exemption for tests.
+    one.
+*   Import direction: `checks/` may import `sync/` (schemas, generate).
+    Library modules in `sync/` never import `checks/`; only the entry points
+    (`sync/__main__.py` and the `main()` of `sync/strip.py`) call
+    `checks.privacy` and `checks.binaries`.
+*   Every reader of repo files takes a `read(path) -> bytes | None` function
+    and a list of paths, never a repo root. `sync/files.py` provides the
+    readers: disk, index (`git show :<path>`), commit
+    (`git show <sha>:<path>`), and overlay (a dict laid over another
+    reader).
 
 ### Order of work
 
@@ -745,19 +800,35 @@ Each step is committed only when its tests pass. No generated data is
 committed before steps 1 to 3 exist (CLAUDE.md, Pending setup).
 
 0.  Quarto spike, outside the repo (below).
-1.  `checks/` (pre-commit checks) and `.githooks/pre-commit`; enable the
-    hook; local hookify rules.
+1.  `checks/` and `.githooks/pre-commit`, `.githooks/pre-push`; enable the
+    hooks; local hookify rules.
 2.  `sync/schemas.py`, `sync/files.py`.
 3.  `.claude/settings.json` deny rule; `.gitignore`; CLAUDE.md rules.
 4.  `sync/generate.py`, then `sync/importer.py`, then `sync/__main__.py`.
-5.  `sync/abstract_license.py`, `sync/strip.py`.
+5.  `sync/strip.py` (`strip_pdf` for the CV, `strip_image` for the
+    headshot).
 6.  Quarto shells, `_quarto.yml`, `_includes/person.html`; the owner creates
     `authored/home.md` and `authored/research.md`.
 7.  `checks/postrender.py`.
 8.  `.github/workflows/build.yml`, `requirements.txt`; set the Pages source.
 9.  `README.md`, `LICENSE`, `LICENSE-CONTENT.md`.
-10. Decision updates (0004, 0006, 0009) and CLAUDE.md "Where things stand".
+10. Decision updates (0002, 0004, 0006, 0009) and CLAUDE.md "Where things
+    stand".
 11. First real `sync` against the vault export; first push.
+
+**Phase 2 (decided 2026-11-26), built when the first item needs it**, each
+part with its tests, in its own commit:
+
+*   **CC BY abstracts**: `sync/abstract_license.py`,
+    `data/abstract-licenses.yml`, `validate_abstract_licenses`, check 4,
+    the `abstract` front matter key and the abstract on item pages.
+*   **Hosted item files**: `files` entries with `path`, `resources` on item
+    pages, and the `sync.strip` CLI destinations under
+    `papers|talks|posters/<id>/`.
+
+Until then the authored-file schema rejects `abstract` and `files[].path`,
+so neither can reach the site unchecked. `files` entries with `url` and
+`related` are built in phase 1. Parts below marked "(Phase 2)" wait.
 
 ### Step 0: Quarto spike (scratch directory, not committed)
 
@@ -773,8 +844,9 @@ fallback, so no step later waits on a decision.
 | 5 | `quarto render -M last-updated:2026-11-25` sets metadata on a website render. | CI writes `_last-updated.yml`, listed under `metadata-files` in `_quarto.yml`. |
 | 6 | `include-in-header: - text: '<meta ...>'` in front matter lands in `<head>`. | Write the tags to `<id>/_head.html` and use `include-in-header: _head.html`. |
 | 7 | `{{< include /authored/home.md >}}` works while `authored/` is not rendered. | Move owner text to `authored/_home.md` (Quarto skips `_` files). |
-| 8 | Sitemap URL form; the marker text inside an `aliases:` redirect file. | Record what Quarto writes; the post-render check normalises `/x/index.html` to `/x/`. |
+| 8 | Sitemap URL form. | Record what Quarto writes; the post-render check normalises `/x/index.html` to `/x/`. |
 | 9 | Default theme loads nothing from another site. | Set `theme: none` plus a small local CSS file. |
+| 10 | `strip_pdf` (pypdf) run twice on the same input gives identical bytes. Not Quarto, but tested in the same spike. | `data/cv.yml` gains `source_sha256` (of the vault PDF as read), and "changed" is decided by that hash, not by the stripped bytes. |
 
 Record the results in 0006 under "Tested" (step 10).
 
@@ -787,8 +859,11 @@ Record the results in 0006 under "Tested" (step 10).
 
 #### 2. `checks/privacy.py` (Create)
 
-*   **Type / Scope**: Python module, used by the hook, CI and `sync`.
-*   **Proposed Changes**: `scan_text(text, source_name, username=None) ->
+*   **Type / Scope**: Python module, used by the hooks, CI and `sync`.
+*   **Proposed Changes**: `SCAN_SCOPE`, the path globs from the Technical
+    Plan's Checks 2 (`data/**`, `authored/**`, `**/*.qmd`, `*/listing.yml`,
+    `_quarto.yml`, `_includes/**`, `README.md`, `LICENSE*`), with
+    `in_scope(path) -> bool`. `scan_text(text, source_name, username=None) ->
     list[str]`.
     *   First removes the exempt patterns: DOIs (`10\.\d{4,9}/\S+`), the ORCID
         format (`\d{4}-\d{4}-\d{4}-\d{3}[\dX]`), ISO dates.
@@ -827,27 +902,37 @@ Record the results in 0006 under "Tested" (step 10).
     *   Ledger: every old line must still be present.
     *   `old` is read with `git show <ref>:<path>`. If there is no ref (first
         commit, or CI with an all-zero `before`), the check is skipped and
-        prints one line saying so.
+        prints one line saying so. (Known gap, accepted 2026-11-26: after an
+        approved history rewrite, CI's `before` may be missing too. The local
+        hooks still compare with `HEAD` or each commit's parent.)
 
 #### 5. `checks/__main__.py` (Create)
 
-*   **Type / Scope**: CLI, `python -m checks [--staged] [--base <ref>]`.
-*   **Proposed Changes**: Gets the file list. With `--staged`, the list is
-    `git diff --cached --name-only --diff-filter=ACMR` and the content comes
-    from `git show :<path>`. Without it, the list is `git ls-files` and the
-    content comes from disk. Then it runs:
+*   **Type / Scope**: CLI, `python -m checks [--staged | --commit <sha>]
+    [--base <ref>] [--local]`.
+*   **Proposed Changes**: Picks a reader and a file list:
+    *   `--staged`: the index reader, and the files in
+        `git diff --cached --name-only --diff-filter=ACMR` (the append-only
+        and generate checks read every file they need through the same
+        reader).
+    *   `--commit <sha>`: the commit reader, and the files in
+        `git ls-tree -r --name-only <sha>`; `--base` defaults to `<sha>^`.
+    *   Neither: the disk reader, and `git ls-files`.
+
+    `--local` (set by both hooks) adds the username check. Then it runs:
     1.  The schemas from `sync/schemas.py` on `data/items.yml` (through
         `sync/export_schema.validate_export`), `data/manifest.yml`,
-        `data/cv.yml`, `data/abstract-licenses.yml` and every
+        `data/cv.yml`, `data/abstract-licenses.yml` (Phase 2) and every
         `authored/**/*.md` front matter.
-    2.  `privacy.scan_text` on every text file. The username is passed only
-        with `--staged`, taken from `getpass.getuser()` and `Path.home()`.
+    2.  `privacy.scan_text` on every text file for which
+        `privacy.in_scope` is true. The username is passed only with
+        `--local`, taken from `getpass.getuser()` and `Path.home()`.
     3.  `binaries.check_binary` on every other file.
-    4.  The abstract-license rule: every authored `abstract` has a record
-        whose `doi` equals the item's `doi` in `data/items.yml` and whose
-        `url` matches `^https?://creativecommons\.org/licenses/by/`.
-    5.  `append_only` against `HEAD` (hook) or `--base` (CI).
-    6.  `sync.generate.check()`.
+    4.  (Phase 2) The abstract-license rule: every authored `abstract` has a
+        record whose `doi` equals the item's `doi` in `data/items.yml` and
+        whose `url` matches `^https?://creativecommons\.org/licenses/by/`.
+    5.  `append_only` against `HEAD` (`--staged`) or `--base`.
+    6.  `sync.generate.check(read)` with the same reader.
 
     It prints all errors, then exits 1 if there were any.
 
@@ -856,14 +941,12 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Type / Scope**: CLI, `python -m checks.postrender _site`.
 *   **Proposed Changes**:
     1.  Every line in `data/ledger.txt` maps to a file in `_site` (`/x/` →
-        `x/index.html`). That file is a page, a tombstone (marker
-        `data-tombstone` in the HTML) or an alias redirect (the marker found
-        in Step 0).
+        `x/index.html`). That file is a page or a tombstone (marker
+        `data-tombstone` in the HTML).
     2.  Every `papers/*/index.html` that is not a tombstone has one
         `citation_title`, at least one `citation_author` and one
         `citation_publication_date`.
-    3.  `sitemap.xml`, normalised, lists every built `index.html` except
-        alias redirects.
+    3.  `sitemap.xml`, normalised, lists every built `index.html`.
     4.  `index.html` contains `Last updated \d{4}-\d{2}-\d{2}`.
     5.  No path under `_site` starts with `design/`, `docs/`, `data/`,
         `authored/`, `sync/` or `checks/`.
@@ -875,7 +958,9 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Type / Scope**: Unit tests.
 *   **Proposed Changes**:
     *   Privacy: each leak kind is caught; each exempt pattern (DOI, ORCID,
-        date, `actions/checkout@v4`) is not; messages hold no matched text.
+        date) is not; messages hold no matched text; `in_scope` is true for
+        `data/items.yml` and `papers/x/index.qmd` and false for
+        `checks/privacy.py` and `design/academic-website.md`.
     *   Binaries: a PDF built in the test with an Author field fails, and the
         same PDF after `sync/strip.py` passes; a JPEG with EXIF fails; a
         6 MB file fails; a PDF whose text holds a fake email fails.
@@ -888,8 +973,17 @@ Record the results in 0006 under "Tested" (step 10).
 
 *   **Type / Scope**: POSIX shell script (Git for Windows runs it with its
     own `sh`).
-*   **Proposed Changes**: `exec python -m checks --staged`. It must be
-    executable (`git update-index --chmod=+x`).
+*   **Proposed Changes**: `exec python -m checks --staged --local`. It must
+    be executable (`git update-index --chmod=+x`).
+
+#### 8a. `.githooks/pre-push` (Create)
+
+*   **Type / Scope**: POSIX shell script, like the pre-commit hook.
+*   **Proposed Changes**: For each `<local sha> <remote sha>` line that git
+    passes on standard input (skipping deletions), list the new commits
+    with `git rev-list <local> --not --remotes` and run
+    `python -m checks --commit <sha> --local` on each. Any failure stops
+    the push. Executable, like the pre-commit hook.
 
 #### 9. `sync/__init__.py` (Create)
 
@@ -914,31 +1008,38 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Type / Scope**: Python module.
 *   **Proposed Changes**: Validators in the same style as
     `export_schema.py` (they return a list of errors and reject unknown
-    keys).
+    keys). `UID_RE` and `_valid_date` are imported from `export_schema.py`,
+    not redefined, so the manifest's `uid` and dates follow the export's
+    rules exactly.
     *   `validate_manifest`: a list of `{uid, type, id, withdrawn?}`. `type` is
         one of `papers`, `talks`, `posters`. The `id` regex is from the
         Technical Plan. `withdrawn` is a valid `YYYY-MM-DD`. `uid` and
         `(type, id)` are unique.
     *   `validate_authored`: front matter keys limited to `related` (list of
-        `<type>/<id>`), `files` (list of entries with `path` xor `url`, plus
-        `label` and `rights`, all non-empty strings; `path` has no `/` and
-        no `..`) and `abstract` (string; papers only).
-    *   `validate_cv`: `{date}`.
-    *   `validate_abstract_licenses`: `{"papers/<id>": {url, doi, checked}}`.
+        `<type>/<id>`) and `files` (list of entries with `url`, `label` and
+        `rights`, all non-empty strings). Phase 2 adds `path` as an
+        alternative to `url` (`path` xor `url`; `path` has no `/` and no
+        `..`) and `abstract` (string; papers only). Until then both are
+        errors.
+    *   `validate_cv`: `{date}` (plus `source_sha256` if Step 0 #10 fails).
+    *   (Phase 2) `validate_abstract_licenses`: `{"papers/<id>": {url, doi,
+        checked}}`.
 
 #### 13. `sync/files.py` (Create)
 
 *   **Type / Scope**: Python module.
 *   **Proposed Changes**: `write_outputs(outputs, allowed)` as in
     Conventions. `read_front_matter(text) -> (dict, body)`, which splits a
-    leading `---` YAML block.
+    leading `---` YAML block. The four readers from Conventions:
+    `disk_reader(root)`, `index_reader()`, `commit_reader(sha)`,
+    `overlay_reader(outputs, base)`.
 
 #### 14. `sync/generate.py` (Create)
 
 *   **Type / Scope**: Python module and CLI, `python -m sync.generate
     [--check]`.
-*   **Proposed Changes**: `build_outputs(repo_root) -> dict[path, bytes]`,
-    pure: it reads only committed files.
+*   **Proposed Changes**: `build_outputs(read) -> dict[path, bytes]`,
+    pure: it reads every input through `read` and nothing else.
 
     ```text
     items    = data/items.yml (validated)          by uid
@@ -958,8 +1059,7 @@ Record the results in 0006 under "Tested" (step 10).
         if has_page: out[<type>/<id>/index.qmd] = page(rec, auth, licenses)
     out[<type>/listing.yml] for each type (rows in items.yml order)
     out[cv/index.qmd] = cv_page(data/cv.yml if present)
-    out[data/ledger.txt] = sorted(ledger ∪ FIXED_PAGES ∪ item pages
-                                  ∪ hosted file paths ∪ cv pdf if present)
+    out[data/ledger.txt] = sorted(ledger ∪ FIXED_PAGES ∪ item pages)
     ```
 
     *   `FIXED_PAGES` = `/`, `/research/`, `/papers/`, `/talks/`,
@@ -968,7 +1068,7 @@ Record the results in 0006 under "Tested" (step 10).
         `format: poster` → `posters`; `oral` or `lecture` → `talks`.
     *   `related` targets must be in the manifest. Withdrawn targets are left
         out.
-    *   Each hosted `files.path` must exist in `<type>/<id>/`.
+    *   (Phase 2) Each hosted `files.path` must exist in `<type>/<id>/`.
     *   **Display rules:**
         *   `date_display`: `12 Sep 2024`, `Sep 2024` or `2024`, by precision.
         *   `status_display`: `In press` or `Preprint`.
@@ -979,19 +1079,21 @@ Record the results in 0006 under "Tested" (step 10).
         *   `external()`: `https://doi.org/<doi>`, else `preprint_url`, else
             `url`, else no link.
     *   **Item page front matter:** `title`, `description` (the citation
-        line), `resources` (hosted files), and `include-in-header` with the
-        citation tags (papers only, as in the Technical Plan).
+        line), `resources` (hosted files, Phase 2), and `include-in-header`
+        with the citation tags (papers only, as in the Technical Plan).
     *   **Item page body**, in this order: citation, status, links (DOI, free
         copy labelled by kind, preprint, `url`), summary, CC BY abstract with
-        its label and license link, files with rights notes, related.
+        its label and license link (Phase 2), files with rights notes,
+        related.
     *   **Tombstone:** title, `Withdrawn from this site on <date>.`, a
         `<div data-tombstone>`, nothing else.
     *   **CV page:** `[Curriculum vitae (PDF)](cv-public.pdf)`, `Updated
         <date>.` and `resources: [cv-public.pdf]`; or the placeholder line
         `The public CV will be posted here.`
-    *   `main(check)`: build the outputs. With `--check`, compare them with
-        the files on disk (staged content when called from the hook) and
-        list every file that differs or is missing. Without it, call
+    *   `check(read)`: build the outputs with `read` and compare each with
+        `read(path)` for the same path; list every file that differs or is
+        missing. `main(check)`: with `--check`, run `check(disk_reader)`.
+        Without it, call
         `write_outputs` with allowed patterns `*/listing.yml`,
         `papers|talks|posters/*/index.qmd`, `cv/index.qmd`, `data/ledger.txt`.
 
@@ -1009,10 +1111,12 @@ Record the results in 0006 under "Tested" (step 10).
     *   For a manifest entry without `withdrawn` whose `uid` is absent: error.
     *   Sort by `date` descending, then `uid`; write `data/items.yml`.
     *   **CV:** if `<vault>/shared/cv/out/cv-public.pdf` exists, strip it
-        with `strip.strip_pdf`, run `binaries.check_binary`, and compare with
-        `cv/cv-public.pdf`. If different, output the PDF and a
-        `data/cv.yml` with today's date. If the file is missing, output
-        nothing for the CV.
+        with `strip.strip_pdf` and compare with `cv/cv-public.pdf` (or, if
+        Step 0 #10 fails, compare the source's SHA-256 with
+        `data/cv.yml`'s `source_sha256`). If different, output the PDF and
+        a `data/cv.yml` with today's date. If the file is missing, output
+        nothing for the CV. The binary check runs in `sync/__main__.py`
+        (step 4), not here.
     *   **Report:** counts of kept, withdrawn kept, not in manifest, and the
         CV state (`none`, `unchanged`, `updated`).
 
@@ -1022,9 +1126,9 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Proposed Changes**:
     1.  Fail unless `git config core.hooksPath` is `.githooks`.
     2.  Fail unless `VAULT_DIR` is set and points to an existing folder.
-    3.  Run `importer`, then `generate.build_outputs` on the repo as it
-        would be after the import (an overlay of the import outputs on
-        disk).
+    3.  Run `importer`, then `generate.build_outputs` with
+        `overlay_reader(import outputs, disk_reader)`, the repo as it would
+        be after the import.
     4.  Run `privacy.scan_text` on every text output and
         `binaries.check_binary` on the PDF. Any error stops the run before
         anything is written.
@@ -1034,7 +1138,7 @@ Record the results in 0006 under "Tested" (step 10).
         outputs, each through `write_outputs` with its own allowed list
         (import: `data/items.yml`, `data/cv.yml`, `cv/cv-public.pdf`).
 
-#### 17. `sync/abstract_license.py` (Create)
+#### 17. `sync/abstract_license.py` (Create, Phase 2)
 
 *   **Type / Scope**: CLI, `python -m sync.abstract_license papers/<id>`.
 *   **Proposed Changes**:
@@ -1061,8 +1165,9 @@ Record the results in 0006 under "Tested" (step 10).
     *   `strip_image(data, kind) -> bytes`: Pillow, copy the pixels into a
         new image, save with no EXIF, XMP or text chunks (JPEG quality 95).
     *   CLI: `<src>` must be under `staging/`. `<dest>` must be
-        `images/headshot.jpg` or `papers|talks|posters/<id>/<name>`. After
-        stripping, it runs `binaries.check_binary`, then writes.
+        `images/headshot.jpg` (Phase 2 adds
+        `papers|talks|posters/<id>/<name>`). After stripping, it runs
+        `binaries.check_binary`, then writes.
 
 #### 19. `sync/test_generate.py`, `sync/test_importer.py`, `sync/test_schemas.py`, `sync/test_abstract_license.py`, `sync/test_strip.py` (Create)
 
@@ -1071,8 +1176,9 @@ Record the results in 0006 under "Tested" (step 10).
     files are committed.
 *   **Proposed Changes**:
     *   Generate: a row-only item; an item with a summary gets a page and a
-        ledger line; a CC BY abstract with and without a license record; a
-        type mismatch error; a page in the ledger that lost its content
+        ledger line; (Phase 2) a CC BY abstract with and without a license
+        record; a type mismatch error; with the index reader, a partly
+        staged change is checked against the staged inputs only; a page in the ledger that lost its content
         errors; a withdrawn item with a page gets a tombstone; a withdrawn
         row-only item loses its row; `related` to a withdrawn item is left
         out; a preprint published in place keeps its URL and moves in order;
@@ -1081,8 +1187,8 @@ Record the results in 0006 under "Tested" (step 10).
     *   Importer: every error row of the Lifecycle table; CV missing,
         unchanged and updated.
     *   Schemas: each rule accepts and rejects.
-    *   Abstract license: saved Crossref replies for CC BY (`vor`), CC BY-NC,
-        a `tdm` license only, and no license.
+    *   (Phase 2) Abstract license: saved Crossref replies for CC BY
+        (`vor`), CC BY-NC, a `tdm` license only, and no license.
     *   Strip: output has no metadata and the same page count.
 
 #### 20. `_quarto.yml` (Create)
@@ -1091,9 +1197,8 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Proposed Changes**:
     *   `project`: `type: website`, `output-dir: _site`, and `render:` set to
         exactly `index.qmd`, `research/index.qmd`, `cv/index.qmd`,
-        `papers/**/*.qmd`, `talks/**/*.qmd`, `posters/**/*.qmd`. This is
-        narrower than the Technical Plan's `**/*.qmd`, so no stray `.qmd`
-        anywhere else can become a page.
+        `papers/**/*.qmd`, `talks/**/*.qmd`, `posters/**/*.qmd`, so no stray
+        `.qmd` anywhere else can become a page.
     *   `website`:
         *   `title: Abraham Yeffal`, `site-url: https://ayeffal.github.io/`,
             `search: false`.
@@ -1118,6 +1223,8 @@ Record the results in 0006 under "Tested" (step 10).
         then `Last updated {{< meta last-updated >}}`.
     *   The headshot line (`images/headshot.jpg`, with alt text) is added in
         the same commit as the image.
+    *   After the site is live, the Search Console verification `<meta>` tag
+        is added to `include-in-header` (0010).
 
 #### 22. `_includes/person.html` (Create)
 
@@ -1186,7 +1293,7 @@ Record the results in 0006 under "Tested" (step 10).
 #### 29. `.github/workflows/build.yml` (Create)
 
 *   **Type / Scope**: GitHub Actions workflow.
-*   **Proposed Changes**: Triggers: push to any branch, and
+*   **Proposed Changes**: Triggers: push to `main`, and
     `workflow_dispatch`.
     *   **Job `check`:**
         1.  `actions/checkout` with `fetch-depth: 0`.
@@ -1194,7 +1301,7 @@ Record the results in 0006 under "Tested" (step 10).
             requirements.txt`.
         3.  `python -m unittest discover -t . -s sync` and the same for
             `checks`.
-        4.  `python -m checks --base ${{ github.event.before }}`.
+        4.  `python -m checks --commit HEAD --base ${{ github.event.before }}`.
     *   **Job `build`** (needs `check`):
         1.  `quarto-dev/quarto-actions/setup` with `version: 1.11.9`.
         2.  `quarto render -M last-updated:$(git log -1 --format=%cs)`.
@@ -1205,8 +1312,8 @@ Record the results in 0006 under "Tested" (step 10).
 
     Permissions are `contents: read`, `pages: write`, `id-token: write`, with
     one `pages` concurrency group. Each action is pinned to a release tag.
-    Checks run on every branch so that the leak test (Verification) can
-    exercise CI without deploying.
+    CI runs `python -m checks --commit HEAD --base <before>`, the same code
+    the pre-push hook runs, so the hook tests cover it.
 
 #### 30. `requirements.txt` (Create)
 
@@ -1219,7 +1326,7 @@ Record the results in 0006 under "Tested" (step 10).
 
 *   **Type / Scope**: Git config.
 *   **Proposed Changes**: Add `__pycache__/`, `.venv/` and
-    `.claude/*.local.md` (the hookify rules, which contain the username).
+    `.claude/*.local.md` (the local hookify rules).
 
 #### 32. `.claude/settings.json` (Modify)
 
@@ -1228,16 +1335,18 @@ Record the results in 0006 under "Tested" (step 10).
     `Write(authored/**)`, `Edit(data/manifest.yml)`,
     `Write(data/manifest.yml)`. No machine-specific paths.
 
-#### 33. `.claude/hookify.owner-files.local.md`, `.claude/hookify.private-data.local.md` (Create, local, untracked)
+#### 33. `.claude/hookify.owner-files.local.md`, `.claude/hookify.hook-bypass.local.md` (Create, local, untracked)
 
 *   **Type / Scope**: Hookify rules (CLAUDE.md Pending setup).
 *   **Proposed Changes**:
     *   The first rule blocks any Bash command that writes to `authored/` or
         `data/manifest.yml` (redirections, `sed -i`, `cp`, `mv`, `tee`,
         `rm`).
-    *   The second rule blocks `git commit` when the staged diff matches the
-        privacy patterns or the username, as a Claude-side duplicate of the
-        hook.
+    *   The second rule blocks the ways Claude could get past the git hooks:
+        `--no-verify` on `git commit` or `git push`, any
+        `git config core.hooksPath`, and writes to `.githooks/`. It holds no
+        privacy patterns: those live only in `checks/privacy.py`, so they
+        cannot drift apart (2026-11-26).
     *   Both rules are created with the hookify plugin's own commands, not by
         hand.
 
@@ -1266,8 +1375,9 @@ Record the results in 0006 under "Tested" (step 10).
     *   setup from a fresh clone: Python 3.13, `pip install -r
         requirements.txt`, Quarto 1.11.9, `git config core.hooksPath
         .githooks`, `VAULT_DIR`;
-    *   the commands `sync`, `sync --dry-run`, `sync.abstract_license`,
-        `sync.strip`, `quarto preview`, the tests;
+    *   the commands `sync`, `sync --dry-run`, `sync.strip`,
+        `quarto preview`, the tests (and `sync.abstract_license` in
+        Phase 2);
     *   the six "Adding an item" steps;
     *   the "Who writes what" table, linked to this design.
 
@@ -1286,17 +1396,20 @@ Record the results in 0006 under "Tested" (step 10).
     *   Third-party files are covered by neither license; each shows its own
         rights note (0007).
 
-#### 39. `docs/decisions/0004-data-schema.md`, `0006-site-generator.md`, `0009-privacy-and-permanence.md` (Modify)
+#### 39. `docs/decisions/0002-url-scheme.md`, `0004-data-schema.md`, `0006-site-generator.md`, `0009-privacy-and-permanence.md` (Modify)
 
 *   **Type / Scope**: Decision records, updated after the design is
     approved.
-*   **Proposed Changes**:
+*   **Proposed Changes**: As listed in "Decision updates this plan needs":
+    *   0002: the `aliases:` safety net is withdrawn, pages do not move, and
+        the ledger holds page URLs only.
     *   0004: the license record moves to `data/abstract-licenses.yml`;
         `related` and `files` live in the authored front matter.
-    *   0006: the two-step `sync`; CI reruns `generate --check`; the Step 0
-        results under "Tested".
-    *   0009: `build` runs `generate --check`; the hook is the privacy gate
-        for what reaches GitHub; `sync` refuses to run without the hook.
+    *   0006: the two-step `sync`; CI reruns `generate --check`; the CV
+        reason has lapsed; the Step 0 results go under "Tested".
+    *   0009: `build` runs `generate --check`; the local hooks are the
+        privacy gate for what reaches GitHub; the pre-push hook; `sync`
+        refuses to run without the hooks.
 
     Each change is dated 2026-11-25 or later.
 
@@ -1310,7 +1423,9 @@ Record the results in 0006 under "Tested" (step 10).
 ### Verification Plan
 
 *   **Compilation/Build**: `quarto render` (local and CI, Quarto 1.11.9).
-*   **Unit Tests**: `python -m unittest discover -t . -s sync` and
+*   **Unit Tests**: these cover the pre-push hook's checks and CI's, since
+    both run `python -m checks --commit`. Commands:
+    `python -m unittest discover -t . -s sync` and
     `python -m unittest discover -t . -s checks`, run locally and in CI.
 *   **Static Analysis & Linting**: none added (no unrequested
     dependencies); `python -m checks` is the repo's own static check.
@@ -1326,10 +1441,11 @@ Record the results in 0006 under "Tested" (step 10).
         sitemap.
     2.  **Hook leak test.** In a scratch clone, stage one file per leak kind
         (fake values) and a PDF with metadata. Each commit is refused.
-    3.  **CI leak test.** Only with the owner's approval at that time: a
-        `leak-test` branch with one fake leak, committed with `--no-verify`
-        by the owner. The `check` job fails and nothing deploys. The branch
-        is then deleted.
+    3.  **Bypass test.** In the same scratch clone, with a local bare repo as
+        its `origin`, commit one fake leak with `--no-verify` and push. The
+        pre-push hook refuses the push. Nothing is pushed to GitHub. This
+        replaces the earlier CI leak test (2026-11-26), which would have
+        published a fake leak in the public repo's history.
     4.  **Ledger test.** In a scratch clone, delete a generated page for a
         ledger URL. `generate --check` and `checks.postrender` both fail.
     5.  **Fresh clone.** The first push to `main` builds and deploys from a
