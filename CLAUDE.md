@@ -48,8 +48,14 @@ EGM artifact directory: design/
 - EGM review in progress (interactive, all rubrics). Stage 5 done
   (`design/zoom_out_report.md`); its findings were applied to the design on
   2026-11-26 (pre-push hook, ledger holds page URLs only, no `aliases:`,
-  Phase 2 for CC BY abstracts and hosted files). Next: Stages 6 to 9, then
-  Step 0 (Quarto spike) of the Detailed Implementation Plan.
+  Phase 2 for CC BY abstracts and hosted files). Stage 6 done
+  (`design/comprehension_report.md`), all findings applied; C2 changed the
+  design on 2026-11-27: `sync` suggests each ID and writes the manifest
+  after the owner confirms. Stage 7 done (`design/critic_report.md`);
+  proposed fixes in `design/goldfish_review_report.md` are NOT applied yet.
+  Next: owner decides on those fixes (auto accept / interactive / continue)
+  and answers K2b (does the vault CV list exactly the export's items?),
+  then Stages 8 and 9, then Step 0 (Quarto spike).
 
 ## Pending setup (remind me; remove each line once done)
 
