@@ -1,8 +1,12 @@
 # Academic website
 
 *   **Author:** Abraham Yeffal
-*   **Status:** Approved 2026-11-25 (all sections; brief reconciled).
-    Not yet reviewed with `/egm:egm-review`.
+*   **Status:** Approved 2026-11-25 (all sections; brief reconciled). EGM
+    review in progress: Stage 5 and Stage 6 findings applied 2026-11-26
+    (`design/zoom_out_report.md`, `design/comprehension_report.md`).
+*   **Dates in parentheses** such as "(2026-11-26)" mark choices made in
+    this design. They go into the decisions listed under "Decision updates
+    this plan needs" at step 10.
 *   **Date:** 2026-11-24
 
 --------------------------------------------------------------------------------
@@ -30,7 +34,23 @@ The site is English-only, with `/es/` reserved (0001).
 
 Decisions 0001 to 0010 in `docs/decisions/` are the source for this design.
 Where `design/concepts_brief.md` disagrees with them, the decisions win (see
-"Superseded lines in the brief" below).
+"Superseded lines in the brief" below). The fields of an export record
+(`type`, `format`, `date_precision`, `pub_status`, `open_copy_kind` and the
+rest) are listed in 0004 and shown in `design/site-export.sample.yaml`.
+
+Terms used below:
+
+*   **Vault agent**: the Claude Code session that works in the vault-side
+    repository. Its written replies (`design/reply-*.md`) fixed the export
+    format.
+*   **Claude**: Claude Code, the AI coding assistant that writes this repo's
+    code under the owner's review.
+*   **hookify**: a Claude Code plugin whose rules block some of Claude's own
+    commands. Its rules are local files, not tracked in git.
+*   **`CLAUDE.local.md`**: an untracked notes file for machine-specific
+    values, such as the vault's path.
+*   **DNI, CUIL**: the Argentine national identity number and the
+    tax/labour identification number.
 
 ## The Problem
 
@@ -74,7 +94,8 @@ Each goal states how it will be checked.
     comes from the vault export. This repo adds only the owner's authored
     text (or a CC BY paper's abstract), the `id`, `related` links and `files`
     entries (0004). Check: `sync` is the only program that writes item data,
-    and it reads only the export and the public CV PDF.
+    and from the vault it reads nothing but the export and the public CV
+    PDF.
 *   **Private by construction.** No commit and no deploy goes through if the
     committed data holds a key not on the allowlist, an absolute path, a
     username, a DNI/CUIL pattern, the plain form of the contact email, a phone
@@ -89,7 +110,7 @@ Each goal states how it will be checked.
     shared keeps reaching that item or page. GitHub Pages cannot do
     server-side redirects, so URLs are chosen with foresight to never need changing, and an ID is
     never reused for a different item (0002). Check: the build fails if any
-    URL in the committed ledger (the list of every page URL ever published)
+    URL in the committed ledger (the list of every page URL ever committed)
     has neither a page nor a tombstone (a page left at the URL saying the
     item was withdrawn). Pages do not move (2026-11-26). Hosted files are
     not in the ledger: a file can be taken down (see "Co-author removal
@@ -290,19 +311,19 @@ research/index.qmd          research page shell; includes authored/research.md
 papers/index.qmd            list page shell (Quarto listing of listing.yml)
 papers/listing.yml          GENERATED: list rows
 papers/<id>/index.qmd       GENERATED: item page or tombstone
-papers/<id>/<file>.pdf      owner-added hosted file (optional, <= 5 MB)
+papers/<id>/<file>.pdf      hosted file, Phase 2 (strip tool, run by owner; <= 5 MB)
 talks/ ... posters/ ...     same shape as papers/
 cv/index.qmd                GENERATED: CV page or placeholder
 cv/cv-public.pdf            written by sync import (absent until a CV exists)
 authored/home.md            OWNER: home text
 authored/research.md        OWNER: research text
 authored/<type>/<id>.md     OWNER: an item's summary, related, files, abstract
-images/headshot.jpg         owner-added, metadata stripped
+images/headshot.jpg         written by the strip tool, run by the owner
 data/manifest.yml           OWNER: one entry per public item (append-only)
 data/items.yml              written by sync import: export records kept
 data/cv.yml                 written by sync import: date of the current CV
 data/abstract-licenses.yml  written by the abstract-license tool only
-data/ledger.txt             written by generate: every page URL ever published
+data/ledger.txt             written by generate: every page URL ever committed
 sync/                       export_schema.py (exists), sync, generate,
                             abstract-license tool, metadata-strip tool, tests
 checks/                     pre-commit and CI checks, post-render checks, tests
@@ -328,7 +349,7 @@ reached at `<dir>/`, as 0002 requires.
 | `data/items.yml`, `data/cv.yml`, `cv/cv-public.pdf` | `sync` import | owner, Claude |
 | generated pages, `listing.yml`, `data/ledger.txt` | `generate` | owner, Claude |
 | `data/abstract-licenses.yml` | abstract-license tool | owner, Claude |
-| hosted files, headshot | metadata-strip tool, from a copy the owner puts in `staging/` (gitignored) | `sync` |
+| hosted files, headshot | metadata-strip tool, run by the owner on a copy in `staging/` (gitignored). The owner may delete them, never edit them. | `sync`, Claude |
 | shells, `_quarto.yml`, code, workflow | Claude, reviewed by owner | `sync` |
 
 Guards:
@@ -377,18 +398,23 @@ descending, then `uid`, as in the export. It is validated with the existing
 ```yaml
 related: ["talks/surname-2024-tag"]   # other items, as <type>/<id>
 files:
-  - path: "poster.pdf"                # hosted, in <type>/<id>/
-    label: "Poster (PDF)"
-    rights: "© the authors"           # one-line rights note (0007)
   - url: "https://zenodo.org/..."     # external, e.g. a recording
     label: "Recording"
+    rights: "© the authors"           # one-line rights note (0007)
+  - path: "poster.pdf"                # Phase 2: hosted, in <type>/<id>/
+    label: "Poster (PDF)"
     rights: "© the authors"
-abstract: |                           # papers only; CC BY abstract, copied
-  ...                                 # by the owner from the publisher
+abstract: |                           # Phase 2, papers only: CC BY abstract,
+  ...                                 # copied by the owner from the publisher
 ```
 
 The body is the summary in the owner's words. Any other front matter key
 is an error.
+
+**Phase 2** means the parts built only when the first item needs them:
+CC BY abstracts and hosted item files (see "Order of work"). Until then the
+schema rejects `abstract` and `files[].path`, so neither can reach the site
+unchecked.
 
 **`data/abstract-licenses.yml`** (tool). `papers/<id>: {url, doi,
 checked}`. Written by `sync/abstract-license` after it asks Crossref for the
@@ -451,7 +477,7 @@ order is kept.
 
 | Event | What happens |
 | :--- | :--- |
-| Owner marks an item public in the vault | The export counts it as "not in manifest" until the owner adds the manifest entry. |
+| Owner marks an item public in the vault | `sync`'s report counts it as "not in manifest" until the owner adds the manifest entry. |
 | Manifest entry added | Next `sync` adds its record and a row; a page too if an authored file has content. |
 | Preprint is published | Same `uid`, so the same ID and URL. The record updates in place, the row moves to the new date, and the summary stays. |
 | Authored file gains content | The row gets a page; its URL enters the ledger. |
@@ -463,7 +489,7 @@ order is kept.
 | `related` names an item not in the manifest | Error. |
 | Export `schema_version` is not 1 | Error, nothing written (0003). |
 | CV PDF appears or changes | Stripped, scanned, written with a new `data/cv.yml` date. A failed scan stops `sync`. |
-| CV PDF unchanged apart from metadata | Nothing written. How "unchanged" is decided depends on Step 0 #10. |
+| CV PDF unchanged apart from metadata | Nothing written. "Unchanged" means the stripped PDF has the same bytes as the committed one. If stripping doesn't give the same bytes every run, it means instead that the vault PDF's SHA-256 matches the one in `data/cv.yml`. A throwaway test before building (Step 0 #10) settles which. |
 
 `sync` computes every output and runs every check in memory before writing
 anything, then writes each file through a temporary file and a rename. Its
@@ -566,7 +592,9 @@ the repo's Pages source to "GitHub Actions".
 ### Adding an item (the 10-minute path)
 
 1.  In the vault: mark the item public; run the vault-side export.
-2.  Add its manifest entry (`uid` from the vault note, `type`, a new `id`).
+2.  Add its manifest entry: its `uid`, read from the export file
+    (`shared/cv/out/site-export.yaml`, the record with the item's title);
+    its `type`; and a new `id`.
 3.  Optional: write `authored/<type>/<id>.md`. For a CC BY abstract
     (Phase 2), paste it and run the abstract-license tool.
 4.  Optional (Phase 2): put a file in `staging/`, run the metadata-strip
@@ -574,6 +602,23 @@ the repo's Pages source to "GitHub Actions".
 5.  Run `sync`; preview locally with `quarto preview` if wanted.
 6.  Commit (the pre-commit hook runs the checks) and push (the pre-push
     hook checks again; CI deploys).
+
+A page becomes permanent once its commit is pushed: its URL is then in the
+pushed ledger. Before the push, the commit can still be dropped.
+
+### Withdrawing an item
+
+The order matters: `sync` refuses an item marked `withdrawn` that is still
+in the export (0009).
+
+1.  In the vault: remove the item's consent; run the vault-side export.
+2.  Add `withdrawn: "<today>"` to its manifest entry. Change nothing else.
+3.  Phase 2: delete its hosted files and their `files` entries.
+4.  Run `sync`. A page becomes a tombstone; a row-only item loses its row.
+5.  Commit and push.
+
+For a co-author's request to remove a hosted file, only step 3 applies,
+then steps 4 and 5 (see "Co-author removal request").
 
 **Suggested order for the first launch (decided 2026-11-25).** Add every
 public item as a row first (steps 1, 2, 5, 6 only), so the site launches
@@ -619,8 +664,9 @@ Applied only after the design is approved:
     (`git config core.hooksPath .githooks`, which covers both); `sync`
     enforces it, but a commit made without running `sync` (a typo fix in
     `authored/`) relies on it being set.
-*   `strip_pdf` may not give the same bytes on every run (pypdf may write a
-    new file `/ID`). Step 0 #10 tests it.
+*   Stripping the CV's metadata may not give the same bytes on every run
+    (pypdf may write a new file `/ID`). This is tested before building
+    (Step 0 #10); the fallback is the hash rule in the Lifecycle table.
 
 ## Alternatives Considered
 
