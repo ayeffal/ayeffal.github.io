@@ -4,6 +4,8 @@
 *   **Status:** Approved 2026-11-25 (all sections; brief reconciled). EGM
     review in progress: Stage 5 and Stage 6 findings applied 2026-11-26
     (`design/zoom_out_report.md`, `design/comprehension_report.md`).
+    2026-11-27: `sync` now writes the manifest, with the owner confirming
+    each new ID and each withdrawal at a prompt (Stage 6 finding C2).
 *   **Dates in parentheses** such as "(2026-11-26)" mark choices made in
     this design. They go into the decisions listed under "Decision updates
     this plan needs" at step 10.
@@ -88,7 +90,9 @@ Each goal states how it will be checked.
 *   **Credible.** The home page shows the date of its last update; the
     affiliation lines are the ones fixed in 0010; the site and the public CV
     list the same papers, talks and posters, because both use the vault's one
-    eligibility rule (0008, 0010). Check: the build fails if the home page
+    eligibility rule (0008, 0010) and `sync` gives every exported item an ID
+    before it writes anything (2026-11-27). Check: `sync` stops if any
+    exported item has no manifest entry; the build fails if the home page
     lacks the last-updated date.
 *   **One source of truth.** Every paper, talk and poster shown on the site
     comes from the vault export. This repo adds only the owner's authored
@@ -158,7 +162,21 @@ These go into the Technical Plan.
 *   **`author_position`** stays out of the site (0004, resolved).
 *   **Withdrawal** uses a `withdrawn` date in the manifest (0009). An item
     with a page becomes a tombstone; an item with only a list row loses its
-    row. The manifest entry stays, so the ID is never reused.
+    row. The manifest entry stays, so the ID is never reused. `sync` adds the
+    date after the owner confirms it (2026-11-27).
+*   **IDs are suggested by `sync`** (changed 2026-11-27, after Stage 6
+    finding C2; was: typed by the owner into the manifest). For each
+    exported item with no manifest entry, `sync` shows its title and type
+    and proposes an ID in the 0003 format: first author's surname, the year
+    of the item's `date`, and the first title word that is not a short
+    common word ("a", "the", "of", "on" and so on), adding the next such
+    word if the ID is taken. The owner presses Enter to accept it or types
+    another tag. The ID is then fixed for good, as 0003 requires. This
+    removes the hand-edited manifest step from "Adding an item", and the
+    site cannot lag behind the CV, because `sync` does not finish while an
+    exported item has no ID. The consent check stays in the vault
+    (`site: public` and `site_consent`), as in common academic-site
+    practice, where being in the curated data file means being shown.
 *   **Public CV PDF.** `sync` copies it from a fixed vault-side path, strips
     its metadata and scans its text before writing it (0008). Agreed path:
     `shared/cv/out/cv-public.pdf`. No CV builder exists yet, so a missing
@@ -270,7 +288,8 @@ Reconciled at finalisation (2026-11-25, each decided by the owner):
  ┌───────────────────────────────────────────────────────────────────┐
  │ sync = step 1 "import"  +  step 2 "generate"                      │
  │                                                                   │
- │ import:  export ──validate──► keep only manifest uids             │
+ │ import:  export ──validate──► new uids: owner confirms an ID      │
+ │          ──► data/manifest.yml (append)                           │
  │          ──► data/items.yml                                       │
  │          cv-public.pdf ──strip metadata──► scan text              │
  │          ──► cv/cv-public.pdf + data/cv.yml   (only if changed)   │
@@ -319,7 +338,7 @@ authored/home.md            OWNER: home text
 authored/research.md        OWNER: research text
 authored/<type>/<id>.md     OWNER: an item's summary, related, files, abstract
 images/headshot.jpg         written by the strip tool, run by the owner
-data/manifest.yml           OWNER: one entry per public item (append-only)
+data/manifest.yml           written by sync import at the owner's prompt: one entry per public item (append-only)
 data/items.yml              written by sync import: export records kept
 data/cv.yml                 written by sync import: date of the current CV
 data/abstract-licenses.yml  written by the abstract-license tool only
@@ -345,7 +364,8 @@ reached at `<dir>/`, as 0002 requires.
 
 | File | Written by | Never written by |
 | :--- | :--- | :--- |
-| `authored/**`, `data/manifest.yml` | owner | any program; Claude |
+| `authored/**` | owner | any program; Claude |
+| `data/manifest.yml` | `sync` import, only after the owner answers its prompt | owner by hand, Claude |
 | `data/items.yml`, `data/cv.yml`, `cv/cv-public.pdf` | `sync` import | owner, Claude |
 | generated pages, `listing.yml`, `data/ledger.txt` | `generate` | owner, Claude |
 | `data/abstract-licenses.yml` | abstract-license tool | owner, Claude |
@@ -363,7 +383,9 @@ Guards:
     `authored/**` and `data/manifest.yml`. A deny rule does not cover shell
     commands, so the hookify rule (Pending setup in CLAUDE.md) also blocks
     shell writes to those paths. Claude proposes text changes in chat and the
-    owner makes them.
+    owner makes them. `sync` asks its manifest questions only in an
+    interactive terminal, so a run Claude starts cannot add an ID or a
+    withdrawal: it stops with a count instead.
 *   **Change to 0004 (proposed here):** the CC BY license record (`url`,
     `doi`, `checked` date) moves out of the owner's authored file into
     `data/abstract-licenses.yml`, keyed by `<type>/<id>`. That way no program
@@ -372,7 +394,8 @@ Guards:
 
 ### Data formats
 
-**`data/manifest.yml`** (owner, append-only). A list of entries:
+**`data/manifest.yml`** (`sync` import at the owner's prompt, append-only).
+A list of entries:
 
 ```yaml
 - uid: "r-p7m2kw4d"        # export key, ^r-[a-z0-9]{8}$
@@ -477,12 +500,11 @@ order is kept.
 
 | Event | What happens |
 | :--- | :--- |
-| Owner marks an item public in the vault | `sync`'s report counts it as "not in manifest" until the owner adds the manifest entry. |
-| Manifest entry added | Next `sync` adds its record and a row; a page too if an authored file has content. |
+| Owner marks an item public in the vault | Next `sync` proposes an ID; once the owner confirms it, the entry is appended and the item gets a row (a page too if an authored file has content). Run without a terminal: `sync` stops with "N items need an ID" and writes nothing. |
 | Preprint is published | Same `uid`, so the same ID and URL. The record updates in place, the row moves to the new date, and the summary stays. |
 | Authored file gains content | The row gets a page; its URL enters the ledger. |
 | Page loses all content (authored file emptied or deleted) | Error: the URL is in the ledger. The owner restores the content or withdraws the item. |
-| Manifested item missing from the export, not withdrawn | Error (0009). |
+| Manifested item missing from the export, not withdrawn | `sync` shows the title and asks whether to withdraw it. Yes: it adds `withdrawn: <today>`. No, or no terminal: error (0009), nothing written. |
 | Item marked `withdrawn` but still in the export | Error (0009). |
 | Item withdrawn | Tombstone if it had a page; otherwise the row goes. The manifest entry stays. Its hosted files are deleted by the owner. |
 | Hosted file taken down (Phase 2) | The owner deletes the file and its `files` entry. Its URL stops working. If the page has no content left, it is the "page loses all content" error above. |
@@ -493,9 +515,13 @@ order is kept.
 
 `sync` computes every output and runs every check in memory before writing
 anything, then writes each file through a temporary file and a rename. Its
-report gives counts only (`N rows, N pages, N tombstones, N not in
-manifest`), never titles or values (0009). `--dry-run` prints the report and
-writes nothing. `sync` refuses to run if `git config core.hooksPath` is not
+report gives counts only (`N rows, N pages, N tombstones, N new IDs, N
+withdrawn`), never titles or values (0009). Titles appear only in the
+manifest prompts, which run in the owner's terminal, are never logged, and
+are shown only for items the owner has already made public. The prompts
+come first, so every check still runs on the full result before anything is
+written. `--dry-run` asks nothing, prints the report (with "N items need an
+ID" and "N missing from the export" if any) and writes nothing. `sync` refuses to run if `git config core.hooksPath` is not
 `.githooks`, so the pre-commit hook cannot be silently inactive.
 
 ### Checks
@@ -592,14 +618,14 @@ the repo's Pages source to "GitHub Actions".
 ### Adding an item (the 10-minute path)
 
 1.  In the vault: mark the item public; run the vault-side export.
-2.  Add its manifest entry: its `uid`, read from the export file
-    (`shared/cv/out/site-export.yaml`, the record with the item's title);
-    its `type`; and a new `id`.
+2.  Run `sync` in a terminal. It shows the new item's title and a proposed
+    ID; press Enter to accept it or type another tag. The item gets a row.
 3.  Optional: write `authored/<type>/<id>.md`. For a CC BY abstract
     (Phase 2), paste it and run the abstract-license tool.
 4.  Optional (Phase 2): put a file in `staging/`, run the metadata-strip
     tool into `<type>/<id>/`, and list it under `files`.
-5.  Run `sync`; preview locally with `quarto preview` if wanted.
+5.  If you did step 3 or 4, run `sync` again so the item gets its page.
+    Preview locally with `quarto preview` if wanted.
 6.  Commit (the pre-commit hook runs the checks) and push (the pre-push
     hook checks again; CI deploys).
 
@@ -608,20 +634,22 @@ pushed ledger. Before the push, the commit can still be dropped.
 
 ### Withdrawing an item
 
-The order matters: `sync` refuses an item marked `withdrawn` that is still
-in the export (0009).
+Withdrawal starts in the vault: `sync` only offers to withdraw an item
+that has left the export (0009).
 
 1.  In the vault: remove the item's consent; run the vault-side export.
-2.  Add `withdrawn: "<today>"` to its manifest entry. Change nothing else.
-3.  Phase 2: delete its hosted files and their `files` entries.
-4.  Run `sync`. A page becomes a tombstone; a row-only item loses its row.
-5.  Commit and push.
+2.  Phase 2: delete its hosted files and their `files` entries.
+3.  Run `sync` in a terminal. It shows the item's title and asks whether to
+    withdraw it; answer yes. It adds `withdrawn: "<today>"` to the manifest
+    entry. A page becomes a tombstone; a row-only item loses its row.
+4.  Commit and push.
 
-For a co-author's request to remove a hosted file, only step 3 applies,
-then steps 4 and 5 (see "Co-author removal request").
+For a co-author's request to remove a hosted file, only step 2 applies,
+then steps 3 (with no withdrawal question) and 4 (see "Co-author removal
+request").
 
 **Suggested order for the first launch (decided 2026-11-25).** Add every
-public item as a row first (steps 1, 2, 5, 6 only), so the site launches
+public item as a row first (steps 1, 2 and 6 only), so the site launches
 with complete lists. Then give items pages one at a time, adding a
 summary, CC BY abstract or hosted file per item. Hosted files and rights
 notes, the riskiest part, then come after the pipeline has run on real
@@ -858,7 +886,7 @@ committed before steps 1 to 3 exist (CLAUDE.md, Pending setup).
 7.  `checks/postrender.py`.
 8.  `.github/workflows/build.yml`, `requirements.txt`; set the Pages source.
 9.  `README.md`, `LICENSE`, `LICENSE-CONTENT.md`.
-10. Decision updates (0002, 0004, 0006, 0009) and CLAUDE.md "Where things
+10. Decision updates (0002, 0003, 0004, 0006, 0009) and CLAUDE.md "Where things
     stand".
 11. First real `sync` against the vault export; first push.
 
@@ -1150,11 +1178,29 @@ Record the results in 0006 under "Tested" (step 10).
     (outputs, report)`.
     *   Load `<vault>/shared/cv/out/site-export.yaml` with
         `export_schema.load_export`.
-    *   Keep records whose `uid` is in the manifest.
+    *   Takes an `ask` function (`ask(prompt, default) -> str | None`;
+        `None` means no terminal) so tests can answer the prompts.
+    *   **New IDs:** for each export record whose `uid` has no manifest
+        entry, derive its type, then `suggest_id(record, taken)`: the first
+        author's surname (the part of the first `authors` entry before the
+        initials, lowercased, accents removed, non-letters dropped), the
+        year of `date`, and the first title word not in a fixed short list
+        of common words, lowercased ASCII; if `(type, id)` is taken, add the
+        next such word, then a digit word ("two", "three"). Ask once, showing
+        title, type and suggestion. An answer is a tag only; it is checked
+        against the `id` regex and uniqueness and asked again on error.
+        Append `{uid, type, id}` to the manifest output.
+    *   **Missing items:** for each manifest entry without `withdrawn` whose
+        `uid` is absent from the export, ask whether to withdraw it,
+        showing the title from the current `data/items.yml`. Yes: add
+        `withdrawn: <today>`. No: error.
+    *   If `ask` returns `None` for any question: error with the counts
+        ("N items need an ID", "N missing from the export").
     *   For a manifest entry with `withdrawn`: if its `uid` is in the export,
         that is an error; otherwise keep its record from the current
         `data/items.yml`.
-    *   For a manifest entry without `withdrawn` whose `uid` is absent: error.
+    *   Keep records whose `uid` is in the (updated) manifest; that is now
+        every export record.
     *   Sort by `date` descending, then `uid`; write `data/items.yml`.
     *   **CV:** if `<vault>/shared/cv/out/cv-public.pdf` exists, strip it
         with `strip.strip_pdf` and compare with `cv/cv-public.pdf` (or, if
@@ -1163,8 +1209,8 @@ Record the results in 0006 under "Tested" (step 10).
         a `data/cv.yml` with today's date. If the file is missing, output
         nothing for the CV. The binary check runs in `sync/__main__.py`
         (step 4), not here.
-    *   **Report:** counts of kept, withdrawn kept, not in manifest, and the
-        CV state (`none`, `unchanged`, `updated`).
+    *   **Report:** counts of kept, withdrawn kept, new IDs, newly
+        withdrawn, and the CV state (`none`, `unchanged`, `updated`).
 
 #### 16. `sync/__main__.py` (Create)
 
@@ -1172,17 +1218,21 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Proposed Changes**:
     1.  Fail unless `git config core.hooksPath` is `.githooks`.
     2.  Fail unless `VAULT_DIR` is set and points to an existing folder.
-    3.  Run `importer`, then `generate.build_outputs` with
+    3.  Run `importer` with `ask` reading from the terminal when stdin is
+        a terminal and not `--dry-run`, otherwise returning `None`
+        (`--dry-run` reports the counts instead of failing). Then run
+        `generate.build_outputs` with
         `overlay_reader(import outputs, disk_reader)`, the repo as it would
         be after the import.
     4.  Run `privacy.scan_text` on every text output and
         `binaries.check_binary` on the PDF. Any error stops the run before
         anything is written.
-    5.  Print the report: rows, pages and tombstones per type; not in
-        manifest; CV state.
+    5.  Print the report: rows, pages and tombstones per type; new IDs;
+        newly withdrawn; CV state.
     6.  Unless `--dry-run`, write the import outputs, then the generate
         outputs, each through `write_outputs` with its own allowed list
-        (import: `data/items.yml`, `data/cv.yml`, `cv/cv-public.pdf`).
+        (import: `data/manifest.yml`, `data/items.yml`, `data/cv.yml`,
+        `cv/cv-public.pdf`).
 
 #### 17. `sync/abstract_license.py` (Create, Phase 2)
 
@@ -1231,7 +1281,11 @@ Record the results in 0006 under "Tested" (step 10).
         running `build_outputs` twice gives identical bytes; `--check`
         reports a hand-edited page.
     *   Importer: every error row of the Lifecycle table; CV missing,
-        unchanged and updated.
+        unchanged and updated. With a scripted `ask`: a suggested ID
+        accepted; a typed tag; a bad tag asked again; a clash gets the next
+        title word; an accented surname; a missing item withdrawn on "yes"
+        and an error on "no"; `ask` returning `None` stops with counts and
+        writes nothing.
     *   Schemas: each rule accepts and rejects.
     *   (Phase 2) Abstract license: saved Crossref replies for CC BY
         (`vor`), CC BY-NC, a `tdm` license only, and no license.
@@ -1316,10 +1370,11 @@ Record the results in 0006 under "Tested" (step 10).
 
 #### 26. `data/manifest.yml` (Create)
 
-*   **Type / Scope**: Owner file.
+*   **Type / Scope**: Tool file, written by `sync` import at the owner's
+    prompt.
 *   **Proposed Changes**: Created by Claude as `[]` with a header comment
-    describing the entry format, before the deny rule goes in (step 3).
-    From then on, only the owner edits it.
+    saying it is written by `sync` and describing the entry format, before
+    the deny rule goes in (step 3). From then on, only `sync` writes it.
 
 #### 27. `authored/home.md`, `authored/research.md` (Create, by the owner)
 
@@ -1401,8 +1456,9 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Type / Scope**: Project instructions.
 *   **Proposed Changes**:
     *   Add to Rules: "Never write `authored/**` or `data/manifest.yml`;
-        propose text in chat." and "Run `python -m sync`; never edit
-        generated files."
+        propose text in chat." and "Run `python -m sync --dry-run`; never
+        edit generated files. New IDs and withdrawals are confirmed by the
+        owner running `sync` in a terminal."
     *   Update "Where things stand".
     *   Remove each Pending setup line once it is done.
     *   Add "Set `VAULT_DIR` (value in CLAUDE.local.md)" to the setup notes.
@@ -1481,8 +1537,8 @@ Record the results in 0006 under "Tested" (step 10).
 *   **E2E/Integration**:
     1.  **Fake vault.** Copy `design/site-export.sample.yaml` into a scratch
         folder as `shared/cv/out/site-export.yaml` and set `VAULT_DIR` to
-        it. Add manifest entries for the five sample uids in a scratch
-        clone (never committed). Run `sync`, `quarto render` and
+        it. In a scratch clone (never committed), run `sync` and accept the
+        five suggested IDs. Then run `quarto render` and
         `checks.postrender`, and confirm rows, pages, a tombstone and the
         sitemap.
     2.  **Hook leak test.** In a scratch clone, stage one file per leak kind

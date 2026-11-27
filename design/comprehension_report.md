@@ -61,4 +61,5 @@ Decisions 0001 to 0010 are the governing record, and the design proposes amendme
 ## Notes from the orchestrator
 
 - **C2 is a real gap, not just wording.** The manifest gate means the site and the CV can disagree for as long as an item sits in the export without a manifest entry. The design already reports that count, so the cheapest fix is the restatement suggested above.
+- **C2 resolved 2026-11-27.** The owner chose to have `sync` suggest each ID and write the manifest after the owner confirms it. `sync` doesn't finish while an exported item has no ID, so the site can't fall behind the CV. Withdrawal is confirmed the same way. Decision 0003 is to be updated at step 10.
 - **C11 is minor.** An unpushed commit can still be dropped with `git reset`, which also reverts the ledger. In practice a page becomes permanent once it is pushed, but the document should say so.
