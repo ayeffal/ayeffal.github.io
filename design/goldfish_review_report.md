@@ -35,6 +35,9 @@
     words are taken. Compound surnames become hyphenated (`de-la-fuente`).
 *   **Declined (agreed):** K21, K26, design N5.
 *   **K2b:** sent to the vault agent (`design/request-4-to-vault-agent.md`).
+    Answered 2026-11-28 (`design/reply-4-from-vault-agent.md`): CV items ⊆
+    export items, for both CV variants; the CV may list fewer. The Credible
+    goal now says so; nothing else in the design changes.
 
 ## Escalated: needs the owner's knowledge
 
@@ -44,6 +47,7 @@
 *   ***AI Suggestion:*** ESCALATE
 *   ***Justification:*** Only the vault side knows this. No file in this repo answers it.
 *   ***Proposed Edit:*** none until answered. If the CV can include items without site consent, the goal says "every item on the site is also on the CV", not "the same items".
+*   ***Resolution (2026-11-28):*** the reverse holds instead: every CV item is in the export, and the CV may list fewer (`design/reply-4-from-vault-agent.md`). Applied to the Credible goal; the K2b line in Open Questions is removed.
 
 ## Prioritized Findings & AI Suggestions
 

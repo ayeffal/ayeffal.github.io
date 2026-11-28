@@ -55,9 +55,9 @@ EGM artifact directory: design/
   fixes were decided interactively and applied on 2026-11-28 (decisions at
   the top of `design/goldfish_review_report.md`). K4 changed the design:
   `sync` never prompts; new IDs and withdrawals are confirmed by the owner
-  in a gitignored `sync-pending.yml`. K2b (does the vault CV list exactly
-  the export's items?) is with the vault agent
-  (`design/request-4-to-vault-agent.md`). Next: Stages 8 and 9, then
+  in a gitignored `sync-pending.yml`. K2b answered 2026-11-28
+  (`design/reply-4-from-vault-agent.md`): CV items ⊆ export items, the CV
+  may list fewer; applied to the Credible goal. Next: Stages 8 and 9, then
   Step 0 (Quarto spike; Quarto is not installed yet).
 
 ## Pending setup (remind me; remove each line once done)

@@ -110,11 +110,12 @@ Each goal states how it will be checked.
 *   **Credible.** The home page shows the date of its last update; the
     affiliation lines are the ones fixed in 0010; the site and the public CV
     draw on the same vault records and eligibility rule (0008, 0010). After
-    each `sync`, every item in the export is on the site (2026-11-27).
-    Whether the CV lists exactly the export's items is asked of the vault
-    agent (`design/request-4-to-vault-agent.md`). Check: `sync` stops if any
-    exported item has no manifest entry; the build fails if the home page
-    lacks the last-updated date.
+    each `sync`, every item in the export is on the site (2026-11-27). Every
+    paper, talk and poster on either CV is also in the export, so it is on
+    the site after the next `sync`; the CV may list fewer items than the site
+    (2026-11-28, `design/reply-4-from-vault-agent.md`). Check: `sync` stops
+    if any exported item has no manifest entry; the build fails if the home
+    page lacks the last-updated date.
 *   **One source of truth.** Every paper, talk and poster shown on the site
     comes from the vault export. This repo adds only the owner's authored
     text (or a CC BY paper's abstract), the `id`, `related` links and `files`
@@ -170,8 +171,7 @@ Each goal states how it will be checked.
 
 ## Open Questions
 
-None remaining. K2b (does the CV list exactly the export's items?) is with
-the vault agent and changes only the wording of the Credible goal.
+None remaining.
 
 ## Settled Choices
 
