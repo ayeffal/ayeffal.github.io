@@ -35,9 +35,11 @@
     words are taken. Compound surnames become hyphenated (`de-la-fuente`).
 *   **Declined (agreed):** K21, K26, design N5.
 *   **K2b:** sent to the vault agent (`design/request-4-to-vault-agent.md`).
-    Answered 2026-11-28 (`design/reply-4-from-vault-agent.md`): CV items ⊆
-    export items, for both CV variants; the CV may list fewer. The Credible
-    goal now says so; nothing else in the design changes.
+    Answered 2026-11-28 (`design/reply-4-from-vault-agent.md`, revised the
+    same day): site consent governs the site only. For both CV variants the
+    CV and the site share the eligibility rule, and neither item set
+    contains the other. The Credible goal and 0008 now say so; `sync` is
+    unchanged.
 
 ## Escalated: needs the owner's knowledge
 
@@ -47,7 +49,7 @@
 *   ***AI Suggestion:*** ESCALATE
 *   ***Justification:*** Only the vault side knows this. No file in this repo answers it.
 *   ***Proposed Edit:*** none until answered. If the CV can include items without site consent, the goal says "every item on the site is also on the CV", not "the same items".
-*   ***Resolution (2026-11-28):*** the reverse holds instead: every CV item is in the export, and the CV may list fewer (`design/reply-4-from-vault-agent.md`). Applied to the Credible goal; the K2b line in Open Questions is removed.
+*   ***Resolution (2026-11-28, revised the same day):*** the CV does not need site consent, and it may also leave out exported items, so neither set contains the other; only the eligibility rule is shared (`design/reply-4-from-vault-agent.md`). Applied to the Credible goal and 0008; the K2b line in Open Questions is removed.
 
 ## Prioritized Findings & AI Suggestions
 

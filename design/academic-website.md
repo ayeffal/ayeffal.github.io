@@ -110,9 +110,10 @@ Each goal states how it will be checked.
 *   **Credible.** The home page shows the date of its last update; the
     affiliation lines are the ones fixed in 0010; the site and the public CV
     draw on the same vault records and eligibility rule (0008, 0010). After
-    each `sync`, every item in the export is on the site (2026-11-27). Every
-    paper, talk and poster on either CV is also in the export, so it is on
-    the site after the next `sync`; the CV may list fewer items than the site
+    each `sync`, every item in the export is on the site (2026-11-27). The
+    site and the CV share only the eligibility rule: site consent governs
+    the site alone, so the CV (and the hosted public CV PDF) may list an
+    eligible item the site lacks, and may leave out one the site shows
     (2026-11-28, `design/reply-4-from-vault-agent.md`). Check: `sync` stops
     if any exported item has no manifest entry; the build fails if the home
     page lacks the last-updated date.

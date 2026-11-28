@@ -56,9 +56,10 @@ EGM artifact directory: design/
   the top of `design/goldfish_review_report.md`). K4 changed the design:
   `sync` never prompts; new IDs and withdrawals are confirmed by the owner
   in a gitignored `sync-pending.yml`. K2b answered 2026-11-28
-  (`design/reply-4-from-vault-agent.md`): CV items ⊆ export items, the CV
-  may list fewer; applied to the Credible goal. Next: Stages 8 and 9, then
-  Step 0 (Quarto spike; Quarto is not installed yet).
+  (`design/reply-4-from-vault-agent.md`, revised): site consent governs the
+  site only; CV and site share the eligibility rule, neither item set
+  contains the other. Applied to the Credible goal and 0008. Next: Stages 8
+  and 9, then Step 0 (Quarto spike; Quarto is not installed yet).
 
 ## Pending setup (remind me; remove each line once done)
 

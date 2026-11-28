@@ -34,7 +34,7 @@ main objections. Status of each after decisions 0008 to 0010:
 | 3 | The pipeline was described inconsistently. | **Addressed in 0009**: `sync` (local, reads the export) and `build` (automatic, reads committed files). |
 | 4 | The untracked ID-to-vault link file. | **Resolved in 0003**: the link lives in the tracked manifest for public items only. A stable record key (proposed: ZotLit's `zotero-key`) avoids using titles. |
 | 5 | Permanence and takedown. | **Addressed in 0009**: ledger of released URLs, append-only manifest, tombstone pages, history rewrite only for a privacy leak with the owner's approval. Not built. |
-| 6 | One registry for both site and CV. | **Resolved in 0008**: same item list for papers, talks and posters. The CV may add other item types and has two contact variants (public and individual). |
+| 6 | One registry for both site and CV. | **Resolved in 0008**: same eligibility rule for papers, talks and posters, but site consent governs the site only, so the CV and site item sets can each hold items the other lacks (2026-11-28). The CV may add other item types and has two contact variants (public and individual). |
 | 7 | The ten-minute goal is untested. | **Open.** No walkthrough exists. Best written after a few real items. |
 | 8 | No findability work. | **Partly addressed**: five pages, ORCID and Google Scholar links, citation meta tags and a sitemap (0009, 0010). Not built. Search Console registration is undecided. |
 | 9 | Quarto size and untested CI and PDF. | **Partly tested**: `/papers/<id>/` URLs and a list mixing external and internal links work (Quarto 1.11.9, fake data). PDF output, a CI build and a real icon are not tested. |

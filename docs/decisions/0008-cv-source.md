@@ -1,4 +1,4 @@
-# 0008. CV: same item list as the site, two contact variants
+# 0008. CV: same eligibility rule as the site, two contact variants
 
 Status: accepted, 2026-11-21
 
@@ -18,6 +18,15 @@ numbers do not belong on a CV.
   tool may add item types the site does not show (degrees, positions,
   teaching, courses). Those are the CV tool's business and are not specified
   here.
+  - Added 2026-11-28, decided by the owner (`design/reply-4-from-vault-agent.md`):
+    "the same allowlist" means the same eligible statuses, not the same
+    items. Site consent (0009) governs the site export only. Both CV
+    variants may list an eligible item that has no site consent, and may
+    leave out an exported item (a per-note exclusion flag that does not
+    affect the export, or CV versions chosen by item type, topic or target
+    profile). Neither item set contains the other. A CV never lists an
+    ineligible item. Removing site consent takes an item off the site, not
+    off the CV; that is a separate act on the vault side.
 - Two CV variants differ only in the **contact block**:
   1. **Public CV**, may be hosted on the site at a stable URL, overwritten
      when updated, with its date shown. Contact is the "(at)" email shown on
@@ -67,8 +76,12 @@ numbers do not belong on a CV.
 
 ## Consequences
 
-- For papers, talks and posters there is one list, so no two-list drift to
-  check.
+- For papers, talks and posters the site and the CV share one eligibility
+  rule but are two lists. A difference between them is intended, not drift,
+  so there is nothing to check between them.
+- The hosted public CV PDF may list eligible items that have no site
+  consent. That is the owner's choice; the 0009 scan of the PDF still
+  applies.
 - The individual CV needs a place to store contact details and a build option
   for each variant.
 - Anything on the public CV stays findable even after it is replaced.
