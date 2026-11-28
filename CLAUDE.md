@@ -51,11 +51,14 @@ EGM artifact directory: design/
   Phase 2 for CC BY abstracts and hosted files). Stage 6 done
   (`design/comprehension_report.md`), all findings applied; C2 changed the
   design on 2026-11-27: `sync` suggests each ID and writes the manifest
-  after the owner confirms. Stage 7 done (`design/critic_report.md`);
-  proposed fixes in `design/goldfish_review_report.md` are NOT applied yet.
-  Next: owner decides on those fixes (auto accept / interactive / continue)
-  and answers K2b (does the vault CV list exactly the export's items?),
-  then Stages 8 and 9, then Step 0 (Quarto spike).
+  after the owner confirms. Stage 7 done (`design/critic_report.md`); its
+  fixes were decided interactively and applied on 2026-11-28 (decisions at
+  the top of `design/goldfish_review_report.md`). K4 changed the design:
+  `sync` never prompts; new IDs and withdrawals are confirmed by the owner
+  in a gitignored `sync-pending.yml`. K2b (does the vault CV list exactly
+  the export's items?) is with the vault agent
+  (`design/request-4-to-vault-agent.md`). Next: Stages 8 and 9, then
+  Step 0 (Quarto spike; Quarto is not installed yet).
 
 ## Pending setup (remind me; remove each line once done)
 

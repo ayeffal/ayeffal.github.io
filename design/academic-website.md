@@ -1,15 +1,14 @@
 # Academic website
 
 *   **Author:** Abraham Yeffal
-*   **Status:** Approved 2026-11-25 (all sections; brief reconciled). EGM
-    review in progress: Stage 5 and Stage 6 findings applied 2026-11-26
-    (`design/zoom_out_report.md`, `design/comprehension_report.md`).
-    2026-11-27: `sync` now writes the manifest, with the owner confirming
-    each new ID and each withdrawal at a prompt (Stage 6 finding C2).
+*   **Status:** Approved 2026-11-25. Review amendments of 2026-11-26,
+    2026-11-27 and 2026-11-28 were approved by the owner during the EGM
+    review (`design/zoom_out_report.md`, `design/comprehension_report.md`,
+    `design/goldfish_review_report.md`).
+*   **Date:** 2026-11-24
 *   **Dates in parentheses** such as "(2026-11-26)" mark choices made in
     this design. They go into the decisions listed under "Decision updates
-    this plan needs" at step 10.
-*   **Date:** 2026-11-24
+    this plan needs" (Technical Plan).
 
 --------------------------------------------------------------------------------
 
@@ -23,7 +22,7 @@ The data comes from a private notes vault. A program in a separate private
 vault-side repository writes one export file holding only papers, talks and
 posters that the owner has marked public there, and only allowlisted fields
 (0008). In this repo, a local script, `sync`, reads that file and writes
-committed data files. An automatic `build` in GitHub Actions turns the
+committed data files. The `build` job in GitHub Actions turns the
 committed files into pages with Quarto and deploys them (0006, 0009). The
 build never sees the vault or the export.
 
@@ -53,6 +52,26 @@ Terms used below:
     values, such as the vault's path.
 *   **DNI, CUIL**: the Argentine national identity number and the
     tax/labour identification number.
+*   **Manifest** (`data/manifest.yml`): the append-only list that gives each
+    public item its permanent `type` and `id`, keyed by the export's `uid`.
+*   **Pending file** (`sync-pending.yml`, gitignored): where `sync` lists
+    new IDs and withdrawals for the owner to confirm (2026-11-28).
+*   **Ledger** (`data/ledger.txt`): every page URL ever generated, including
+    the fixed pages. A URL in it must keep working once pushed.
+*   **Tombstone**: a page left at a withdrawn item's URL, saying it was
+    withdrawn.
+*   **Phase 2**: CC BY abstracts and hosted item files, built only when the
+    first item needs them (see "Order of work").
+*   **Step 0**: a throwaway Quarto test run before building (Detailed
+    Implementation Plan).
+*   **CI**: GitHub Actions. On each push to `main`, GitHub starts a fresh
+    temporary machine, downloads the repo, installs the pinned Quarto and
+    Python, runs the checks, builds the site and publishes it. If any check
+    fails, nothing is published and the previous site stays up. Free for
+    public repos.
+*   **`build`**: the CI job that renders and deploys the site.
+*   **Owner file**: a file only the owner writes. **Tool file**: a file only
+    a program writes. No file is both (see "Who writes what").
 
 ## The Problem
 
@@ -63,15 +82,16 @@ affiliations. No such page exists.
 
 Three things make this harder than a plain personal page:
 
-1. **The records are private.** Papers, talks and posters are recorded in a
-   private vault that also holds unpublished manuscripts, ID numbers,
-   requirement points and personal notes. Copying from it by hand is slow and
-   one mistake can publish something that git history then keeps forever.
-2. **The same records feed the PDF CV.** If the site and the CV are kept
-   separately, they drift apart.
-3. **Links must not break.** GitHub Pages cannot do server-side redirects, and academics
-   paste links to single items into CVs, forms and papers. A URL that moves
-   or disappears breaks every saved copy.
+1.  **The records are private.** Papers, talks and posters are recorded in
+    a private vault that also holds unpublished manuscripts, ID numbers,
+    requirement points and personal notes. Copying from it by hand is slow
+    and one mistake can publish something that git history then keeps
+    forever.
+2.  **The same records feed the PDF CV.** If the site and the CV are kept
+    separately, they drift apart.
+3.  **Links must not break.** GitHub Pages cannot do server-side
+    redirects, and academics paste links to single items into CVs, forms
+    and papers. A URL that moves or disappears breaks every saved copy.
 
 The proposed solution: the vault side exports only what the owner has
 approved; this repo copies only allowlisted fields from that export, checks
@@ -89,9 +109,10 @@ Each goal states how it will be checked.
     from the sitemap.
 *   **Credible.** The home page shows the date of its last update; the
     affiliation lines are the ones fixed in 0010; the site and the public CV
-    list the same papers, talks and posters, because both use the vault's one
-    eligibility rule (0008, 0010) and `sync` gives every exported item an ID
-    before it writes anything (2026-11-27). Check: `sync` stops if any
+    draw on the same vault records and eligibility rule (0008, 0010). After
+    each `sync`, every item in the export is on the site (2026-11-27).
+    Whether the CV lists exactly the export's items is asked of the vault
+    agent (`design/request-4-to-vault-agent.md`). Check: `sync` stops if any
     exported item has no manifest entry; the build fails if the home page
     lacks the last-updated date.
 *   **One source of truth.** Every paper, talk and poster shown on the site
@@ -100,28 +121,29 @@ Each goal states how it will be checked.
     entries (0004). Check: `sync` is the only program that writes item data,
     and from the vault it reads nothing but the export and the public CV
     PDF.
-*   **Private by construction.** No commit and no deploy goes through if the
-    committed data holds a key not on the allowlist, an absolute path, a
-    username, a DNI/CUIL pattern, the plain form of the contact email, a phone
-    number or an address. The public CV PDF's text gets the same scan before
-    `sync` writes it (0008). The same checks run before each commit and
-    again in the automatic build (0009). Committed PDFs and images (the CV,
+*   **Private by construction.** The local hooks refuse a commit or a push,
+    and CI refuses a deploy, if the committed data holds a key not on the
+    allowlist, an absolute path, a DNI/CUIL pattern, the plain form of the
+    contact email, a phone number or an address. The username check runs
+    only in the local hooks. The hooks can be skipped on purpose (see "Risks
+    and Mitigations"). The public CV PDF's text gets the same scan before
+    `sync` writes it (0008). The checks run before each commit, before each
+    push and again in `build` (0009). Committed PDFs and images (the CV,
     hosted files, the headshot) have their metadata stripped (0004, 0008,
     0010). Check: a test commit with each kind of leak, including a file with
     metadata, is refused by the pre-commit hook; the same commit made with
     `--no-verify` is refused by the pre-push hook.
-*   **Permanent URLs.** Any link to an item or page that has ever been
-    shared keeps reaching that item or page. GitHub Pages cannot do
-    server-side redirects, so URLs are chosen with foresight to never need changing, and an ID is
-    never reused for a different item (0002). Check: the build fails if any
-    URL in the committed ledger (the list of every page URL ever committed)
-    has neither a page nor a tombstone (a page left at the URL saying the
-    item was withdrawn). Pages do not move (2026-11-26). Hosted files are
+*   **Permanent URLs.** Every page URL that has been pushed (an item page,
+    a list page, the home, research or CV page) keeps reaching its page or
+    a tombstone. GitHub Pages cannot do server-side redirects, so URLs are
+    chosen to never need changing, and an ID is never reused for a
+    different item (0002). Pages do not move (2026-11-26). Hosted files are
     not in the ledger: a file can be taken down (see "Co-author removal
-    request").
-*   **Zero cost, no lock-in.** The site builds from a fresh clone with pinned
-    Quarto (pinned to 1.11.9, not yet tested) and Python, and uses no paid service (0006).
-    Check: a CI build from a clean checkout succeeds.
+    request"). Check: the build fails if any URL in the ledger has neither
+    a page nor a tombstone.
+*   **Zero cost, no lock-in.** The site builds from a fresh clone with
+    Quarto 1.11.9 (pinned, not yet tested) and Python, and uses no paid
+    service (0006). Check: a CI build from a clean checkout succeeds.
 *   **Adding an item takes under 10 minutes.** Measured from "the item is in
     the export" to "the change is pushed". Check: a timed walkthrough with the
     first real item. Not yet shown.
@@ -148,11 +170,14 @@ Each goal states how it will be checked.
 
 ## Open Questions
 
-None remaining.
+None remaining. K2b (does the CV list exactly the export's items?) is with
+the vault agent and changes only the wording of the Credible goal.
 
-### Settled during drafting (2026-11-24)
+## Settled Choices
 
-These go into the Technical Plan.
+Each is part of the Technical Plan; dates show when it was settled.
+
+### Settled during drafting (2026-11-24, later amendments dated inline)
 
 *   **Status spelling.** Data keeps the export's value `in-press`; pages show
     "In press".
@@ -163,20 +188,12 @@ These go into the Technical Plan.
 *   **Withdrawal** uses a `withdrawn` date in the manifest (0009). An item
     with a page becomes a tombstone; an item with only a list row loses its
     row. The manifest entry stays, so the ID is never reused. `sync` adds the
-    date after the owner confirms it (2026-11-27).
-*   **IDs are suggested by `sync`** (changed 2026-11-27, after Stage 6
-    finding C2; was: typed by the owner into the manifest). For each
-    exported item with no manifest entry, `sync` shows its title and type
-    and proposes an ID in the 0003 format: first author's surname, the year
-    of the item's `date`, and the first title word that is not a short
-    common word ("a", "the", "of", "on" and so on), adding the next such
-    word if the ID is taken. The owner presses Enter to accept it or types
-    another tag. The ID is then fixed for good, as 0003 requires. This
-    removes the hand-edited manifest step from "Adding an item", and the
-    site cannot lag behind the CV, because `sync` does not finish while an
-    exported item has no ID. The consent check stays in the vault
-    (`site: public` and `site_consent`), as in common academic-site
-    practice, where being in the curated data file means being shown.
+    date after the owner confirms it in the pending file (2026-11-27,
+    2026-11-28). Once pushed, a withdrawal is permanent: the item cannot
+    return under the same `uid` or ID.
+*   **IDs are suggested by `sync`** (changed 2026-11-27; was: typed by the
+    owner into the manifest). The owner confirms each one in the pending
+    file. The rule is under `data/manifest.yml` in "Data formats".
 *   **Public CV PDF.** `sync` copies it from a fixed vault-side path, strips
     its metadata and scans its text before writing it (0008). Agreed path:
     `shared/cv/out/cv-public.pdf`. No CV builder exists yet, so a missing
@@ -207,10 +224,12 @@ These go into the Technical Plan.
     CC BY may also show its real abstract, labelled with that license and
     its source, and that abstract alone gives the item a page (0002).
     CC BY status is checked against Crossref by DOI when the abstract is
-    added; the license URL, DOI and check date are recorded in the authored
-    file, and the build (offline) fails if they are missing or not CC BY. A
-    summary is optional: a missing one is never an error and never blocks
-    `sync`, the build or the item's list row.
+    added; the license URL, DOI and check date are recorded in
+    `data/abstract-licenses.yml`, and the build (offline) fails if they are
+    missing or not CC BY. A summary is optional: one never written is never
+    an error and never blocks `sync`, the build or the item's list row.
+    Removing the only content of a pushed page is an error (see
+    "Lifecycle").
 *   **Photo.** The home page shows a headshot (0010). The owner must hold its
     rights (own photo, or the photographer's written permission), and its
     metadata is stripped before commit.
@@ -247,7 +266,7 @@ Reconciled at finalisation (2026-11-25, each decided by the owner):
 
 ## Technical Plan (Architecture)
 
-### Settled before drafting (2026-11-25)
+### Settled before drafting the Technical Plan (2026-11-25)
 
 *   **Summaries are written on the website side**, never in the vault. Each
     text is written by the owner once (once more for a later Spanish
@@ -265,16 +284,6 @@ Reconciled at finalisation (2026-11-25, each decided by the owner):
     published pages in a diff, and errors would first appear in the GitHub
     log).
 
-### Terms
-
-*   **CI**: GitHub Actions. On each push to `main`, GitHub starts a fresh
-    temporary machine, downloads the repo, installs the pinned Quarto and
-    Python, runs the checks, builds the site and publishes it. If any check
-    fails, nothing is published and the previous site stays up. Free for
-    public repos.
-*   **Owner file**: a file only the owner writes. **Tool file**: a file only
-    a program writes. No file is both (see "Who writes what").
-
 ### Data flow
 
 ```text
@@ -288,7 +297,9 @@ Reconciled at finalisation (2026-11-25, each decided by the owner):
  ┌───────────────────────────────────────────────────────────────────┐
  │ sync = step 1 "import"  +  step 2 "generate"                      │
  │                                                                   │
- │ import:  export ──validate──► new uids: owner confirms an ID      │
+ │ import:  export ──validate──► new uids: owner confirms an ID;     │
+ │          missing uids: owner confirms withdrawal                  │
+ │          (both in sync-pending.yml; sync stops until confirmed)   │
  │          ──► data/manifest.yml (append)                           │
  │          ──► data/items.yml                                       │
  │          cv-public.pdf ──strip metadata──► scan text              │
@@ -316,8 +327,8 @@ Because it reads only committed files, CI can run it without the vault.
 It never opens files itself: the caller passes a reader function
 (`read(path) -> bytes | None`). The pre-commit hook reads the staged
 version, the pre-push hook and CI read a commit, and `sync` reads the disk
-with its import outputs laid over it. So each check compares like with
-like, and a file staged only in part cannot give a false result.
+with its import outputs laid over it. So each check compares the same
+version of each file, and a file staged only in part is checked as staged.
 This keeps the two programs of 0009: `sync` (local, the only reader of the
 export) and `build` (CI: checks, `generate --check`, render, deploy).
 
@@ -338,11 +349,12 @@ authored/home.md            OWNER: home text
 authored/research.md        OWNER: research text
 authored/<type>/<id>.md     OWNER: an item's summary, related, files, abstract
 images/headshot.jpg         written by the strip tool, run by the owner
-data/manifest.yml           written by sync import at the owner's prompt: one entry per public item (append-only)
+data/manifest.yml           written by sync import after the owner confirms: one entry per public item (append-only)
+sync-pending.yml            GITIGNORED: written by sync import, confirmed by the owner, deleted by sync
 data/items.yml              written by sync import: export records kept
 data/cv.yml                 written by sync import: date of the current CV
 data/abstract-licenses.yml  written by the abstract-license tool only
-data/ledger.txt             written by generate: every page URL ever committed
+data/ledger.txt             written by generate: every page URL ever generated, fixed pages included
 sync/                       export_schema.py (exists), sync, generate,
                             abstract-license tool, metadata-strip tool, tests
 checks/                     pre-commit and CI checks, post-render checks, tests
@@ -356,16 +368,17 @@ LICENSE, LICENSE-CONTENT.md MIT for code; CC BY 4.0 notice for content (0007)
 Quarto renders only an explicit list of `.qmd` files (`render:` in
 `_quarto.yml`: the home, research and CV shells and the `.qmd` files under
 `papers/`, `talks/` and `posters/`), so the `.md` files in `authored/`,
-`design/` and `docs/` never become pages. A post-render check makes sure of it (below). Every
-page lives at `<dir>/index.qmd`, so it builds to `<dir>/index.html` and is
-reached at `<dir>/`, as 0002 requires.
+`design/` and `docs/` never become pages. A post-render check makes sure
+of it (below). Every page lives at `<dir>/index.qmd`, so it builds to
+`<dir>/index.html` and is reached at `<dir>/`, as 0002 requires.
 
 ### Who writes what
 
 | File | Written by | Never written by |
 | :--- | :--- | :--- |
 | `authored/**` | owner | any program; Claude |
-| `data/manifest.yml` | `sync` import, only after the owner answers its prompt | owner by hand, Claude |
+| `data/manifest.yml` | `sync` import, only after the owner confirms in `sync-pending.yml` | owner by hand, Claude |
+| `sync-pending.yml` (gitignored) | `sync` import writes it; the owner edits only `id` and `confirm` | Claude |
 | `data/items.yml`, `data/cv.yml`, `cv/cv-public.pdf` | `sync` import | owner, Claude |
 | generated pages, `listing.yml`, `data/ledger.txt` | `generate` | owner, Claude |
 | `data/abstract-licenses.yml` | abstract-license tool | owner, Claude |
@@ -380,12 +393,16 @@ Guards:
     naming its source. A hand edit is caught by `generate --check` in the
     pre-commit hook and in CI.
 *   `.claude/settings.json` (tracked) denies Claude's Edit and Write tools on
-    `authored/**` and `data/manifest.yml`. A deny rule does not cover shell
-    commands, so the hookify rule (Pending setup in CLAUDE.md) also blocks
-    shell writes to those paths. Claude proposes text changes in chat and the
-    owner makes them. `sync` asks its manifest questions only in an
-    interactive terminal, so a run Claude starts cannot add an ID or a
-    withdrawal: it stops with a count instead.
+    `authored/**`, `data/manifest.yml` and `sync-pending.yml`. A deny rule
+    does not cover shell commands, so the hookify rule (Pending setup in
+    CLAUDE.md) also blocks shell writes to those paths. Claude proposes text
+    changes in chat and the owner makes them.
+*   `sync` never prompts (2026-11-28). New IDs and withdrawals wait in
+    `sync-pending.yml` until the owner confirms them there, so `sync` runs
+    the same from any shell, and a run Claude starts stops at the pending
+    file. This stops accidents; it is not a security control. The control
+    is that every new manifest entry shows in the commit diff the owner
+    reviews.
 *   **Change to 0004 (proposed here):** the CC BY license record (`url`,
     `doi`, `checked` date) moves out of the owner's authored file into
     `data/abstract-licenses.yml`, keyed by `<type>/<id>`. That way no program
@@ -394,8 +411,8 @@ Guards:
 
 ### Data formats
 
-**`data/manifest.yml`** (`sync` import at the owner's prompt, append-only).
-A list of entries:
+**`data/manifest.yml`** (`sync` import after the owner confirms,
+append-only). A list of entries:
 
 ```yaml
 - uid: "r-p7m2kw4d"        # export key, ^r-[a-z0-9]{8}$
@@ -408,6 +425,67 @@ Rules, checked by `checks`: `uid` unique; `(type, id)` unique; `id` matches
 `^[a-z]+(-[a-z]+)*-\d{4}-[a-z]+(-[a-z]+)?$`; compared with the previous
 commit, no entry is removed or reordered and no field changes except that
 `withdrawn` may be added.
+
+**ID suggestion** (2026-11-27, cases added 2026-11-28). For each exported
+item with no manifest entry, `sync` proposes an ID in the 0003 format:
+
+*   **Surname**: the first author's surname, lowercased, accents removed,
+    other non-letters dropped; spaces between parts become hyphens
+    (`de la Fuente` → `de-la-fuente`).
+*   **Year**: the year of the record's `date` when the ID is made. It does
+    not change if the date changes later (0003).
+*   **Tag**: the first title word that, reduced to ASCII letters, has 3 or
+    more letters and is not a short common word ("the", "and", "for" and
+    so on). `2D` becomes `d` and is skipped. If `(type, id)` is taken, the
+    next such word is added. If that is taken too, `id` is left empty for
+    the owner to fill in.
+
+Every `id`, suggested or typed, is checked against the regex above and
+for uniqueness. Once written, the ID is fixed for good (0003). The consent
+check stays in the vault (`site: public` and `site_consent`, 0009): being
+in the export means being shown.
+
+**`sync-pending.yml`** (2026-11-28; `sync` import writes it, the owner
+confirms; gitignored). When the export has new or missing `uid`s, `sync`
+writes this file, prints "N entries need your confirmation in
+sync-pending.yml; nothing else was written" and exits 1:
+
+```yaml
+# PENDING: sync will not finish until every entry below is confirmed.
+# New items: check the id (edit it if you like), then set  confirm: yes
+# Missing items: set  confirm: withdraw  only to withdraw for good.
+#   Once pushed, a withdrawal cannot be undone.
+new:
+  - uid: "r-p7m2kw4d"
+    type: "papers"
+    title: "..."
+    id: "surname-2026-tag"   # suggested
+    confirm: no
+missing:
+  - uid: "r-a1b2c3d4"
+    id: "surname-2025-tag"
+    title: "..."
+    confirm: no
+```
+
+*   The next `sync` reads it. It finishes only when every `new` entry has
+    `confirm: yes` and a valid, unique `id`, and every `missing` entry has
+    `confirm: withdraw`; `yes` is refused for a withdrawal. It then writes
+    the manifest and deletes the file. Otherwise it stops again and writes
+    nothing.
+*   Leaving `confirm: no` is how an entry is skipped for now. While any
+    entry is unconfirmed, `sync` writes nothing.
+*   If the export changed since the file was written, `sync` keeps the
+    answers for entries that still apply, adds new entries unconfirmed,
+    drops the rest and stops.
+*   Before writing the file, `sync` stops with "export looks empty" if the
+    export has no items while the manifest has entries not withdrawn.
+*   The owner may change only `id` and `confirm`; any other change is an
+    error.
+*   The pre-commit hook refuses a commit while the file exists.
+*   Titles appear here so the owner can recognise each item. The file is
+    gitignored, and each title is already in the export or in the
+    committed `data/items.yml`.
 
 **`data/items.yml`** (sync import). The same shape as the export
 (`schema_version: 1`, `items: [...]`), holding only records whose `uid` has
@@ -443,7 +521,9 @@ unchecked.
 checked}`. Written by `sync/abstract-license` after it asks Crossref for the
 item's DOI (taken from `data/items.yml`) and finds a license entry for the
 published version (or with an unspecified version) whose URL starts with
-`http(s)://creativecommons.org/licenses/by/`. The request sends a generic
+`http(s)://creativecommons.org/licenses/by/` and whose `start` date is on
+or before today, so an embargoed license does not count yet (2026-11-28).
+The request sends a generic
 User-Agent and no email. The tool refuses to write anything for any other
 license.
 
@@ -452,8 +532,10 @@ wrote a changed CV PDF. Absent until a CV exists.
 
 **`data/ledger.txt`** (generate). One page path per line, for example
 `/papers/surname-2026-tag/`. `generate` writes the old lines plus every
-page it now produces, sorted. A line is never removed. Hosted files and
-the CV PDF are not listed: their URLs are kept stable by habit, not by a
+page it now produces, including the fixed pages (`/`, `/research/`, the
+three list pages, `/cv/`), sorted. A line is never removed. A URL becomes
+permanent when the commit that adds it is pushed (see "Adding an item").
+Hosted files and the CV PDF are not listed: their URLs are kept stable by habit, not by a
 check, so a file can be taken down.
 
 **`<type>/listing.yml`** (generate). Quarto listing contents. Every value is
@@ -486,7 +568,7 @@ order is kept.
     `citation_journal_title`, `citation_volume`, `citation_firstpage`,
     `citation_doi`. Written by `generate`, not by Quarto's `google-scholar`
     option, because Quarto would parse `Yeffal A` as a personal name
-    (untested) and add a citation box nobody asked for.
+    (untested) and add a citation box that is not wanted.
 *   **Tombstone**: an item marked `withdrawn` whose page URL is in the ledger
     gets a page with its title, the date of withdrawal and a one-line notice.
     It has no summary, no files and no meta tags. A withdrawn item without a
@@ -500,11 +582,12 @@ order is kept.
 
 | Event | What happens |
 | :--- | :--- |
-| Owner marks an item public in the vault | Next `sync` proposes an ID; once the owner confirms it, the entry is appended and the item gets a row (a page too if an authored file has content). Run without a terminal: `sync` stops with "N items need an ID" and writes nothing. |
+| Owner marks an item public in the vault | Next `sync` writes a suggested ID to `sync-pending.yml` and stops. Once the owner sets `confirm: yes` and runs `sync` again, the entry is appended and the item gets a row (a page too if an authored file has content). |
 | Preprint is published | Same `uid`, so the same ID and URL. The record updates in place, the row moves to the new date, and the summary stays. |
 | Authored file gains content | The row gets a page; its URL enters the ledger. |
 | Page loses all content (authored file emptied or deleted) | Error: the URL is in the ledger. The owner restores the content or withdraws the item. |
-| Manifested item missing from the export, not withdrawn | `sync` shows the title and asks whether to withdraw it. Yes: it adds `withdrawn: <today>`. No, or no terminal: error (0009), nothing written. |
+| Manifested item missing from the export, not withdrawn | `sync` lists it under `missing` in `sync-pending.yml` and stops. `confirm: withdraw`: the next `sync` adds `withdrawn: <today>`. Anything else: error (0009), nothing written. |
+| Export has no items, but the manifest has entries not withdrawn | Error "export looks empty", before any pending file is written. Nothing written. |
 | Item marked `withdrawn` but still in the export | Error (0009). |
 | Item withdrawn | Tombstone if it had a page; otherwise the row goes. The manifest entry stays. Its hosted files are deleted by the owner. |
 | Hosted file taken down (Phase 2) | The owner deletes the file and its `files` entry. Its URL stops working. If the page has no content left, it is the "page loses all content" error above. |
@@ -516,13 +599,15 @@ order is kept.
 `sync` computes every output and runs every check in memory before writing
 anything, then writes each file through a temporary file and a rename. Its
 report gives counts only (`N rows, N pages, N tombstones, N new IDs, N
-withdrawn`), never titles or values (0009). Titles appear only in the
-manifest prompts, which run in the owner's terminal, are never logged, and
-are shown only for items the owner has already made public. The prompts
-come first, so every check still runs on the full result before anything is
-written. `--dry-run` asks nothing, prints the report (with "N items need an
-ID" and "N missing from the export" if any) and writes nothing. `sync` refuses to run if `git config core.hooksPath` is not
-`.githooks`, so the pre-commit hook cannot be silently inactive.
+withdrawn`), never titles or values (0009). Titles appear only in
+`sync-pending.yml`, which is gitignored and never printed. The pending
+file is settled first, so every check still runs on the full result
+before anything is written. `--dry-run` writes nothing, not even the
+pending file, and prints the report (with "N items need an ID" and "N
+missing from the export" if any).
+
+`sync` refuses to run if `git config core.hooksPath` is not `.githooks`,
+so the pre-commit hook cannot be silently inactive.
 
 ### Checks
 
@@ -540,35 +625,63 @@ file), in the pre-push hook (on every commit being pushed) and again in CI
     `design/`, `docs/` and `.github/` are not scanned: they contain the
     patterns themselves and never receive vault data (CLAUDE.md's privacy
     rules cover them). The scan looks for absolute paths, DNI and CUIL
-    patterns, any email address in plain form, phone-number patterns, and
-    street-address words and Argentine postal codes. The username check
-    runs only in the local hooks, using the machine's current username and
-    home path, because the username is in no tracked file and CI cannot
-    know it.
-    Known false positives (the ORCID iD, DOIs, `YYYY-MM-DD` dates) are exempt
-    by pattern, in one list in the code. Error messages name file and line,
-    never the matched text.
+    patterns, any email address in plain form, phone numbers, street-address
+    words and Argentine postal codes. The username check runs only in the
+    local hooks, using the machine's current username and home path,
+    because the username is in no tracked file and CI cannot know it.
+
+    The patterns are pinned to avoid normal publication data (2026-11-28):
+    phone numbers need a `+54` prefix, or 8 or more digits in groups split
+    by spaces or dashes, and are not looked for in a `pages` field. Postal
+    codes are matched only in the CPA form (a letter, four digits, three
+    letters); the old four-digit form cannot be told apart from a year and
+    is not scanned. Known false positives (the ORCID iD, DOIs, `YYYY-MM-DD`
+    dates) are exempt by pattern, in one list in the code. Every pattern is
+    tested against the sample export and the generated pages, which must
+    pass clean. Error messages name file and line, never the matched text.
+
+    The absolute-path and username checks also run on `.claude/`,
+    `CLAUDE.md`, `.githooks/`, `.github/`, `.gitignore`, `.gitattributes`
+    and `requirements.txt` (2026-11-28). These files hold no vault data but
+    are where machine paths creep in.
 3.  **Binary files**: every committed PDF and image is at most 5 MB and has
     no metadata (PDF Info dictionary and XMP; image EXIF and XMP). Each PDF's
     text is extracted and gets the scan in 2. A poster that prints co-author
-    emails is therefore refused until the emails are removed.
+    emails is therefore refused until the emails are removed. Phase 2 hosted
+    PDFs: the strip tool also drops annotations and embedded files, and a PDF
+    with images but no extractable text is refused until the owner confirms
+    it (2026-11-28). Image data inside a PDF is not re-encoded (see "Risks
+    and Mitigations").
 4.  **Abstracts** (Phase 2): every authored `abstract` has an entry in
     `data/abstract-licenses.yml` whose `doi` matches the item and whose URL
     is CC BY. No network call.
 5.  **Append-only**: the manifest and the ledger, compared with `HEAD` in
     the pre-commit hook, with each commit's parent in the pre-push hook, and
-    with the previously pushed commit in CI.
+    with the commit before the push in CI. If CI has no such commit (the
+    first push or a manual run), or it is not an ancestor of the pushed
+    commit (a force push after an approved rewrite), CI skips this check
+    and says so in the log (2026-11-28). A leak is removed with
+    `git filter-repo`, approved by the owner each time (0009). The
+    rewritten commits never contained the entry, so the pre-push hook,
+    which compares each commit with its parent, passes them.
 6.  **`generate --check`**: regenerate in memory and compare with the
     committed generated files; any difference fails.
+7.  **No pending file** (pre-commit hook only, 2026-11-28): the commit is
+    refused while `sync-pending.yml` exists, so half-confirmed work is not
+    committed.
 
 **Post-render checks** (CI only, after `quarto render`):
 
 *   Every ledger path exists in `_site` as a page or a tombstone.
 *   Every non-tombstone paper page has `citation_title`, `citation_author`
     and `citation_publication_date`.
-*   `sitemap.xml` lists every built page.
+*   `sitemap.xml` lists every built page except tombstones; `/x/index.html`
+    and `/x/` count as the same URL.
 *   The home page shows "Last updated YYYY-MM-DD". CI passes the date of the
-    last commit to Quarto as metadata (`-M`); the home shell prints it.
+    last commit that touched `data/`, `authored/` or a shell
+    (`git log -1 --format=%cs -- data authored '*.qmd'`) to Quarto as
+    metadata (`-M`), so a code-only commit does not move it (2026-11-28);
+    the home shell prints it.
 *   `_site` holds nothing from `design/`, `docs/`, `data/`, `authored/`,
     `sync/` or `checks/`.
 *   No third-party requests: no built HTML or CSS loads a script, style or
@@ -576,18 +689,7 @@ file), in the pre-push hook (on every commit being pushed) and again in CI
     Quarto's default Bootstrap theme: some Bootswatch themes import Google
     Fonts.
 
-**What the hooks cannot do.** The repo is public. Once a commit is pushed,
-GitHub shows it, whatever CI decides; CI can stop the deploy, not the
-exposure. The local hooks are therefore the real privacy gate, and CI is
-the backstop for the deploy. GitHub offers no server-side hook that could
-refuse a push on github.com. The pre-commit hook can be skipped with
-`--no-verify`; the pre-push hook re-checks every commit in the push, so a
-skipped commit is still caught before it leaves the machine. Both hooks
-can be skipped on purpose, and neither runs in a clone where
-`core.hooksPath` is not set. Rejected for now (2026-11-26): a private
-source repo whose CI pushes only the built site to the public repo. It
-closes this gap but adds a second repo and a deploy secret, which one
-owner committing from one machine does not need.
+What the hooks cannot do is under "Risks and Mitigations".
 
 ### Site configuration
 
@@ -607,30 +709,34 @@ owner committing from one machine does not need.
 
 ### CI workflow
 
-On push to `main` (or a manual run): check out with full history (needed for the
-append-only check), set up Python 3.13 and install the pinned
+On push to `main` (or a manual run): check out with full history (needed
+for the append-only check), set up Python 3.13 and install the pinned
 `requirements.txt` (PyYAML, pypdf, Pillow), run `checks` and
 `generate --check`, install Quarto 1.11.9 with `quarto-dev/quarto-actions`,
-render with the last-commit date, run the post-render checks, then upload
-`_site` and deploy with GitHub's Pages actions. One-time manual step: set
-the repo's Pages source to "GitHub Actions".
+render with the last content-commit date, run the post-render checks,
+then upload `_site` and deploy with GitHub's Pages actions. One-time
+manual step: set the repo's Pages source to "GitHub Actions".
 
-### Adding an item (the 10-minute path)
+### Adding an item (target: under 10 minutes)
 
 1.  In the vault: mark the item public; run the vault-side export.
-2.  Run `sync` in a terminal. It shows the new item's title and a proposed
-    ID; press Enter to accept it or type another tag. The item gets a row.
-3.  Optional: write `authored/<type>/<id>.md`. For a CC BY abstract
+2.  Run `sync`. It stops and writes the new item's title and a suggested ID
+    to `sync-pending.yml`.
+3.  Open `sync-pending.yml`, check or change the `id`, set `confirm: yes`,
+    and run `sync` again. The item gets a row and the pending file is
+    deleted.
+4.  Optional: write `authored/<type>/<id>.md`. For a CC BY abstract
     (Phase 2), paste it and run the abstract-license tool.
-4.  Optional (Phase 2): put a file in `staging/`, run the metadata-strip
+5.  Optional (Phase 2): put a file in `staging/`, run the metadata-strip
     tool into `<type>/<id>/`, and list it under `files`.
-5.  If you did step 3 or 4, run `sync` again so the item gets its page.
+6.  If you did step 4 or 5, run `sync` again so the item gets its page.
     Preview locally with `quarto preview` if wanted.
-6.  Commit (the pre-commit hook runs the checks) and push (the pre-push
+7.  Commit (the pre-commit hook runs the checks) and push (the pre-push
     hook checks again; CI deploys).
 
-A page becomes permanent once its commit is pushed: its URL is then in the
-pushed ledger. Before the push, the commit can still be dropped.
+A page URL becomes permanent once its commit is pushed: this is the one
+definition of "pushed" used in this design. Before the push, the commit
+can still be dropped.
 
 ### Withdrawing an item
 
@@ -639,21 +745,24 @@ that has left the export (0009).
 
 1.  In the vault: remove the item's consent; run the vault-side export.
 2.  Phase 2: delete its hosted files and their `files` entries.
-3.  Run `sync` in a terminal. It shows the item's title and asks whether to
-    withdraw it; answer yes. It adds `withdrawn: "<today>"` to the manifest
-    entry. A page becomes a tombstone; a row-only item loses its row.
-4.  Commit and push.
+3.  Run `sync`. It stops and lists the item under `missing` in
+    `sync-pending.yml`. Set `confirm: withdraw` (the word in full; `yes` is
+    refused) and run `sync` again. It adds `withdrawn: "<today>"` to the
+    manifest entry. A page becomes a tombstone; a row-only item loses its
+    row.
+4.  Commit and push. From then on the withdrawal is permanent.
 
 For a co-author's request to remove a hosted file, only step 2 applies,
-then steps 3 (with no withdrawal question) and 4 (see "Co-author removal
-request").
+then steps 3 (a plain `sync` run, with no pending file) and 4 (see
+"Co-author removal request").
 
 **Suggested order for the first launch (decided 2026-11-25).** Add every
 public item as a row first (steps 1, 2 and 6 only), so the site launches
 with complete lists. Then give items pages one at a time, adding a
 summary, CC BY abstract or hosted file per item. Hosted files and rights
-notes, the riskiest part, then come after the pipeline has run on real
-data. This is the owner's habit, not a rule the code enforces.
+notes, the part most likely to leak co-author data, then come after the
+pipeline has run on real data. This is the owner's habit, not a rule the
+code enforces.
 
 ### Decision updates this plan needs
 
@@ -662,8 +771,17 @@ Applied only after the design is approved:
 *   **0002** (added 2026-11-26): the `aliases:` safety net is withdrawn;
     pages do not move; the ledger holds page URLs only, so a hosted file can
     be taken down.
+*   **0003** (2026-11-27, 2026-11-28): `sync` suggests each ID and the
+    owner confirms or retypes the tag in `sync-pending.yml`; the year is
+    the year of the record's `date` when the ID is made; the manifest is
+    written by `sync`, never by hand.
 *   **0004**: the license record moves to `data/abstract-licenses.yml`
     (above); `related` and `files` live in the authored file's front matter.
+    The visibility rule is the vault consent plus the owner's confirmation
+    of the ID in `sync-pending.yml` (2026-11-27).
+*   **0007**: the CC BY license record is in `data/abstract-licenses.yml`,
+    not in the authored file; a license counts only from its `start` date
+    (2026-11-28).
 *   **0006**: generation is a separate step that reads only committed files;
     CI reruns it and compares. Pages are still committed. The "CV advantage
     of one toolchain" lapsed with 0008 (the CV is built on the vault side);
@@ -672,29 +790,69 @@ Applied only after the design is approved:
 *   **0009**: `build` also runs `generate --check`; the local hooks, not CI,
     are the privacy gate for what reaches GitHub; a pre-push hook re-checks
     every pushed commit (2026-11-26); `sync` refuses to run without the
-    hooks.
+    hooks. `sync` does not finish while an exported item has no ID, which
+    replaces "reports the rest as counts"; a withdrawal is confirmed by the
+    owner in `sync-pending.yml` with the word `withdraw`, and `sync` adds
+    the `withdrawn` date (2026-11-27, 2026-11-28). CI skips the append-only
+    check when the commit before the push is missing or not an ancestor, so
+    an approved history rewrite can deploy (2026-11-28).
 
-### Risks and unverified points
+## Risks and Mitigations
 
-*   Untested in Quarto 1.11.9: `render:` globs that skip `.md`; listing
-    contents with external `path` values and `sort: false` (an external link
-    in one list was tested, 0006); `-M` metadata on a website render; the
-    sitemap's URL form (it may list `/<dir>/index.html` rather than
-    `/<dir>/`; both reach the same file).
-*   Byte-identical output on Windows and Linux is assumed, not tested.
-    `.gitattributes` already forces LF.
-*   Pattern scans catch formats, not meaning. A summary that names an
-    unpublished study passes every check. Only the owner's reading stops
-    it.
-*   Google Scholar may ignore, or wrongly merge, a page that carries citation
-    tags but not the full text. Not verified.
-*   The hooks must be enabled once per clone
-    (`git config core.hooksPath .githooks`, which covers both); `sync`
-    enforces it, but a commit made without running `sync` (a typo fix in
-    `authored/`) relies on it being set.
-*   Stripping the CV's metadata may not give the same bytes on every run
-    (pypdf may write a new file `/ID`). This is tested before building
-    (Step 0 #10); the fallback is the hash rule in the Lifecycle table.
+Each line is risk → mitigation.
+
+**What the hooks cannot do.** The repo is public. Once a commit is pushed,
+GitHub shows it, whatever CI decides; CI can stop the deploy, not the
+exposure. The local hooks are therefore the privacy gate, and CI is the
+backstop for the deploy. GitHub offers no server-side hook that could
+refuse a push on github.com. Rejected for now (2026-11-26): a private
+source repo whose CI pushes only the built site to the public repo. It
+closes this gap but adds a second repo and a deploy secret, which one
+owner committing from one machine does not need.
+
+*   **Hooks skipped.** The pre-commit hook can be skipped with
+    `--no-verify` → the pre-push hook re-checks every commit in the push.
+    Both can be skipped on purpose → the hookify rule blocks Claude from
+    doing it; for the owner it is a deliberate act.
+*   **Hooks not enabled in a clone.** Neither hook runs where
+    `core.hooksPath` is not `.githooks` → `sync` refuses to run without it;
+    a commit made without `sync` (a typo fix in `authored/`) still relies
+    on it being set once per clone (README setup step).
+*   **Mistaken withdrawal.** A broken or partial export could list items as
+    missing, and a pushed withdrawal cannot be undone → `confirm: no` is
+    the default, a withdrawal needs the word `withdraw`, and an empty export
+    stops `sync` before anything is offered.
+*   **Something else confirms on the owner's behalf.** Claude or a script
+    could edit `sync-pending.yml` → Claude's tools are denied on it and the
+    hookify rule blocks shell writes; every new manifest entry still shows
+    in the commit diff the owner reviews.
+*   **Scans catch formats, not meaning.** A summary that names an
+    unpublished study passes every check → the owner reads every diff
+    before committing.
+*   **Old four-digit postal codes are not scanned** (they look like years)
+    → addresses never enter the export, and the owner reads the diff.
+*   **Commit metadata is public.** Author and committer emails appear on
+    GitHub → this clone commits with the GitHub noreply address; keep it
+    that way.
+*   **Image data inside a PDF is not re-encoded** (Phase 2 hosted files) →
+    accepted for now; image-only PDFs need the owner's confirmation, and
+    the owner reads each file before hosting it.
+*   **Quarto 1.11.9 behaviour is untested**: `render:` globs that skip
+    `.md`, listings with external `path` values and `sort: false` (one
+    external link was tested, 0006), `-M` metadata on a website render, the
+    sitemap's URL form → Step 0 tests each one with a fallback; if several
+    fail, Alternative D's Python renderer is reconsidered.
+*   **Byte-identical output on Windows and Linux** is assumed, not tested
+    → `.gitattributes` forces LF; `generate --check` in CI fails on any
+    difference, so a mismatch is caught, not shipped.
+*   **CV stripping may not be repeatable** (pypdf may write a new `/ID`)
+    → Step 0 #10; the fallback is the hash rule in the Lifecycle table.
+*   **Google Scholar may ignore, or wrongly merge, a page** that carries
+    citation tags but not the full text → only the tags are under our
+    control; after launch, check each paper with Scholar's own lookup.
+*   **Scale.** PDFs build up in git history, which never forgets → 5 MB cap
+    per file, and hosted files only in Phase 2, one item at a time. GitHub
+    Pages limits a published site to 1 GB.
 
 ## Alternatives Considered
 
@@ -715,8 +873,10 @@ consent-marked notes under export schema version 2.
     sit side by side, and free text crosses the boundary without the owner
     reading it again, which no pattern scan can make safe; a typo fix takes
     four steps instead of two.
-*   **Reason for Rejection**: Rejected by author (2026-11-25): public text is
-    written where it is published, and the vault stays private notes only.
+*   **Reason for Rejection**: Rejected (owner, 2026-11-25; recorded in
+    `design/concepts_brief.md` and "Settled before drafting the Technical
+    Plan"): public text is written where it is published, and the vault
+    stays private notes only.
 
 ### Alternative B: Owner-owned `index.qmd` with a Pandoc template
 
@@ -728,8 +888,10 @@ beside it; a Quarto title-block template draws the citation and meta tags.
     owner does not maintain; depends on Quarto's metadata merging and partials
     staying the same across versions (untested); a page with only a hosted
     file still needs a generated `index.qmd`, so ownership ends up mixed.
-*   **Reason for Rejection**: Rejected by author (2026-11-25): the same
-    template-maintenance problem for which Hugo was rejected in 0006.
+*   **Reason for Rejection**: Rejected (owner, 2026-11-25; "Settled before
+    drafting the Technical Plan"): the same template-maintenance problem for
+    which Hugo was rejected in
+    [0006](../docs/decisions/0006-site-generator.md).
 
 ### Alternative C: Pages generated only in CI
 
@@ -742,8 +904,9 @@ rendering, and they are never committed.
 *   **Cons**: the owner never sees the published pages in a diff, only in a
     local preview; generation errors appear first in the GitHub log, a tool
     the owner does not use yet; reverses 0006's committed generated files.
-*   **Reason for Rejection**: Rejected by author (2026-11-25): what is
-    committed should be what is published, and errors should appear in the
+*   **Reason for Rejection**: Rejected (owner, 2026-11-25; "Settled before
+    drafting the Technical Plan"): what is committed should be what is
+    published, and errors should appear in the
     terminal. The `generate --check` step in CI keeps the main benefit
     (no stale page reaches the site).
 
@@ -758,7 +921,8 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
     can maintain; Jekyll's GitHub-built advantage is lost because the data is
     generated locally anyway. A Python renderer would mean writing the
     navbar, listings and sitemap by hand.
-*   **Reason for Rejection**: Rejected by author (0006): Quarto is maintainable
+*   **Reason for Rejection**: Rejected
+    ([0006](../docs/decisions/0006-site-generator.md)): Quarto is maintainable
     from Python and R, and gives the navbar, theme, listings and sitemap
     without hand-written HTML. 0006 also counted one toolchain for the site
     and the CV; that reason lapsed when 0008 moved the CV build to the vault
@@ -771,7 +935,8 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
 *   **Pros**: one copy step, no allowlist to keep in two places.
 *   **Cons**: the repo's history would hold every private field once
     committed, and git cannot reliably forget.
-*   **Reason for Rejection**: Rejected by author (0004): filtering happens on
+*   **Reason for Rejection**: Rejected
+    ([0004](../docs/decisions/0004-data-schema.md)): filtering happens on
     the vault side, before anything leaves it (0008), and again in `sync`.
 
 ### Alternative F: Privacy enforced only by the hookify rule
@@ -779,8 +944,9 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
 *   **Pros**: no extra code; already planned in CLAUDE.md.
 *   **Cons**: it guards only Claude's actions on one machine; a commit made
     from a terminal or editor skips it.
-*   **Reason for Rejection**: Rejected by author (0009): the checks run as a
-    git pre-commit hook and again in CI; hookify is an extra layer for
+*   **Reason for Rejection**: Rejected
+    ([0009](../docs/decisions/0009-privacy-and-permanence.md)): the checks
+    run as a git pre-commit hook and again in CI; hookify is an extra layer for
     Claude's shell commands.
 
 ### Alternative G: The `pre-commit` framework instead of a plain git hook
@@ -800,10 +966,31 @@ Hugo, Jekyll, or HTML rendered directly by a Python script.
 *   **Pros**: no code; Quarto writes the tags from front matter.
 *   **Cons**: Quarto parses author names, and `Yeffal A` may be split into
     the wrong given and family names (untested); it also adds a citation box
-    and BibTeX block to each page, which nobody asked for.
+    and BibTeX block to each page, which is not wanted.
 *   **Reason for Rejection**: chosen while drafting the Technical Plan,
     approved with it on 2026-11-25: `generate` writes the tags itself, so
     the format is known and the post-render check can verify it.
+
+### Alternative I: The owner types each manifest entry by hand
+
+*   **Pros**: the owner picks every tag; no suggestion code.
+*   **Cons**: copying each `uid` from the export file is slow and
+    error-prone, and the site lags the export until it is done.
+*   **Reason for Rejection**: Rejected (owner, 2026-11-27; Stage 6 finding
+    C2, `design/comprehension_report.md`): `sync` suggests each ID and the
+    owner confirms it.
+
+### Alternative J: Confirm IDs and withdrawals at a terminal prompt
+
+*   **Pros**: one `sync` run per change; no pending file to read and
+    check.
+*   **Cons**: the owner must type into a running command; native Windows
+    Python under Git Bash (mintty) may not detect a terminal and refuse the
+    owner's own run; the terminal check is easy to fake, so it guards
+    nothing.
+*   **Reason for Rejection**: Rejected (owner, 2026-11-28; Stage 7 finding
+    K4, `design/goldfish_review_report.md`): the owner confirms in
+    `sync-pending.yml` instead.
 
 ### Smaller choices already settled
 
@@ -886,8 +1073,8 @@ committed before steps 1 to 3 exist (CLAUDE.md, Pending setup).
 7.  `checks/postrender.py`.
 8.  `.github/workflows/build.yml`, `requirements.txt`; set the Pages source.
 9.  `README.md`, `LICENSE`, `LICENSE-CONTENT.md`.
-10. Decision updates (0002, 0003, 0004, 0006, 0009) and CLAUDE.md "Where things
-    stand".
+10. Decision updates (0002, 0003, 0004, 0006, 0007, 0009) and CLAUDE.md
+    "Where things stand".
 11. First real `sync` against the vault export; first push.
 
 **Phase 2 (decided 2026-11-26), built when the first item needs it**, each
@@ -937,7 +1124,11 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Proposed Changes**: `SCAN_SCOPE`, the path globs from the Technical
     Plan's Checks 2 (`data/**`, `authored/**`, `**/*.qmd`, `*/listing.yml`,
     `_quarto.yml`, `_includes/**`, `README.md`, `LICENSE*`), with
-    `in_scope(path) -> bool`. `scan_text(text, source_name, username=None) ->
+    `in_scope(path) -> bool`. `PATH_SCOPE` (`.claude/**`, `CLAUDE.md`,
+    `.githooks/**`, `.github/**`, `.gitignore`, `.gitattributes`,
+    `requirements.txt`), with `in_path_scope(path) -> bool`: only the
+    absolute-path and username patterns run there.
+    `scan_text(text, source_name, username=None, paths_only=False) ->
     list[str]`.
     *   First removes the exempt patterns: DOIs (`10\.\d{4,9}/\S+`), the ORCID
         format (`\d{4}-\d{4}-\d{4}-\d{3}[\dX]`), ISO dates.
@@ -946,10 +1137,15 @@ Record the results in 0006 under "Tested" (step 10).
         *   DNI (`\b\d{2}\.?\d{3}\.?\d{3}\b`);
         *   CUIL (`\b\d{2}-?\d{8}-?\d\b`);
         *   any email address (`[\w.+-]+@[\w-]+(\.[\w-]+)*\.[A-Za-z]{2,}`);
-        *   phone numbers (`\+\d{1,3}[\s-]?\(?\d{1,4}\)?([\s-]?\d){6,}`,
-            `\b(11|15)[\s-]?\d{4}[\s-]?\d{4}\b`);
+        *   phone numbers: a `+54` prefix (`\+54[\s-]?\d`), or 8 or more
+            digits in groups split by spaces or dashes
+            (`\b\d{2,4}([\s-]\d{2,4}){2,}\b` with 8 or more digits in
+            total); not applied to a `pages:` line in YAML;
         *   address words (case-insensitive `\b(calle|piso|depto|dpto)\b`);
-        *   Argentine postal codes (`\b[A-Z]\d{4}[A-Z]{3}\b`).
+        *   Argentine postal codes, CPA form only (`\b[A-Z]\d{4}[A-Z]{3}\b`).
+    *   The exact regexes are fixed in the code; the test is that the sample
+        export and the pages generated from it scan clean, and that each
+        fake leak is still caught.
     *   If `username` is given, also looks for it and for the home path, as
         words, ignoring case.
     *   Returns `<source>:<line>: <kind>` only. The patterns live in one list
@@ -974,11 +1170,12 @@ Record the results in 0006 under "Tested" (step 10).
     *   Manifest: `new[:len(old)]` must equal `old` entry by entry, except
         that `withdrawn` may be added to an entry that lacked it.
     *   Ledger: every old line must still be present.
-    *   `old` is read with `git show <ref>:<path>`. If there is no ref (first
-        commit, or CI with an all-zero `before`), the check is skipped and
-        prints one line saying so. (Known gap, accepted 2026-11-26: after an
-        approved history rewrite, CI's `before` may be missing too. The local
-        hooks still compare with `HEAD` or each commit's parent.)
+    *   `old` is read with `git show <ref>:<path>`. The check is skipped,
+        with one line saying so, if there is no ref (first commit, a manual
+        run, or CI with an all-zero `before`), or if the ref is not an
+        ancestor of the checked commit (`git merge-base --is-ancestor`; a
+        force push after an approved history rewrite, 2026-11-28). The local
+        hooks still compare with `HEAD` or each commit's parent.
 
 #### 5. `checks/__main__.py` (Create)
 
@@ -999,14 +1196,17 @@ Record the results in 0006 under "Tested" (step 10).
         `data/cv.yml`, `data/abstract-licenses.yml` (Phase 2) and every
         `authored/**/*.md` front matter.
     2.  `privacy.scan_text` on every text file for which
-        `privacy.in_scope` is true. The username is passed only with
-        `--local`, taken from `getpass.getuser()` and `Path.home()`.
+        `privacy.in_scope` is true, and with `paths_only=True` on every
+        file for which `privacy.in_path_scope` is true. The username is
+        passed only with `--local`, taken from `getpass.getuser()` and
+        `Path.home()`.
     3.  `binaries.check_binary` on every other file.
     4.  (Phase 2) The abstract-license rule: every authored `abstract` has a
         record whose `doi` equals the item's `doi` in `data/items.yml` and
         whose `url` matches `^https?://creativecommons\.org/licenses/by/`.
     5.  `append_only` against `HEAD` (`--staged`) or `--base`.
     6.  `sync.generate.check(read)` with the same reader.
+    7.  With `--staged` only: error if `sync-pending.yml` exists on disk.
 
     It prints all errors, then exits 1 if there were any.
 
@@ -1020,7 +1220,8 @@ Record the results in 0006 under "Tested" (step 10).
     2.  Every `papers/*/index.html` that is not a tombstone has one
         `citation_title`, at least one `citation_author` and one
         `citation_publication_date`.
-    3.  `sitemap.xml`, normalised, lists every built `index.html`.
+    3.  `sitemap.xml`, normalised (`/x/index.html` and `/x/` are the same),
+        lists every built `index.html` that is not a tombstone.
     4.  `index.html` contains `Last updated \d{4}-\d{2}-\d{2}`.
     5.  No path under `_site` starts with `design/`, `docs/`, `data/`,
         `authored/`, `sync/` or `checks/`.
@@ -1032,14 +1233,17 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Type / Scope**: Unit tests.
 *   **Proposed Changes**:
     *   Privacy: each leak kind is caught; each exempt pattern (DOI, ORCID,
-        date) is not; messages hold no matched text; `in_scope` is true for
+        date) is not; a year, a page range and a four-digit volume are not;
+        the sample export scans clean; an absolute path in `CLAUDE.md` is
+        caught; messages hold no matched text; `in_scope` is true for
         `data/items.yml` and `papers/x/index.qmd` and false for
         `checks/privacy.py` and `design/academic-website.md`.
     *   Binaries: a PDF built in the test with an Author field fails, and the
         same PDF after `sync/strip.py` passes; a JPEG with EXIF fails; a
         6 MB file fails; a PDF whose text holds a fake email fails.
     *   Append-only: removal, reordering and a changed `id` fail; adding
-        `withdrawn` passes.
+        `withdrawn` passes; a base that is not an ancestor skips with a
+        message.
     *   Postrender: run against a tiny `_site` tree built in a temporary
         directory, with one case for each failure.
 
@@ -1174,28 +1378,34 @@ Record the results in 0006 under "Tested" (step 10).
 #### 15. `sync/importer.py` (Create)
 
 *   **Type / Scope**: Python module.
-*   **Proposed Changes**: `import_export(vault_dir, repo_root) ->
-    (outputs, report)`.
+*   **Proposed Changes**: `import_export(vault_dir, read, pending) ->
+    (outputs, pending_out, report)`. `pending` is the parsed
+    `sync-pending.yml` or `None`; `pending_out` is the pending file to
+    write, or `None` when every change is confirmed. It never prompts
+    (2026-11-28).
     *   Load `<vault>/shared/cv/out/site-export.yaml` with
         `export_schema.load_export`.
-    *   Takes an `ask` function (`ask(prompt, default) -> str | None`;
-        `None` means no terminal) so tests can answer the prompts.
+    *   **Empty export:** if it has no items while the manifest has entries
+        without `withdrawn`, error "export looks empty"; nothing else runs.
     *   **New IDs:** for each export record whose `uid` has no manifest
-        entry, derive its type, then `suggest_id(record, taken)`: the first
-        author's surname (the part of the first `authors` entry before the
-        initials, lowercased, accents removed, non-letters dropped), the
-        year of `date`, and the first title word not in a fixed short list
-        of common words, lowercased ASCII; if `(type, id)` is taken, add the
-        next such word, then a digit word ("two", "three"). Ask once, showing
-        title, type and suggestion. An answer is a tag only; it is checked
-        against the `id` regex and uniqueness and asked again on error.
-        Append `{uid, type, id}` to the manifest output.
-    *   **Missing items:** for each manifest entry without `withdrawn` whose
-        `uid` is absent from the export, ask whether to withdraw it,
-        showing the title from the current `data/items.yml`. Yes: add
-        `withdrawn: <today>`. No: error.
-    *   If `ask` returns `None` for any question: error with the counts
-        ("N items need an ID", "N missing from the export").
+        entry, derive its type, then `suggest_id(record, taken)` by the rule
+        under "ID suggestion" (Data formats). The surname is the part of
+        the first `authors` entry before the initials. If both candidate
+        tags are taken, the suggestion is `""`.
+    *   **Missing items:** each manifest entry without `withdrawn` whose
+        `uid` is absent from the export, with its title from the current
+        `data/items.yml`.
+    *   **Pending:** build the wanted pending entries (`new`, `missing`).
+        Carry over `id` and `confirm` from `pending` for every `uid` still
+        wanted; drop the others. Validate: only `id` and `confirm` may
+        differ from what `sync` wrote; `confirm` is `yes`/`no` for `new`
+        and `withdraw`/`no` for `missing`; each confirmed `id` matches the
+        regex and is unique within its type.
+    *   If anything is wanted and any entry is unconfirmed or invalid,
+        return `pending_out` and no outputs (the caller writes only the
+        pending file). Otherwise append `{uid, type, id}` for each `new`
+        entry, add `withdrawn: <today>` for each `missing` entry, and return
+        `pending_out = None`.
     *   For a manifest entry with `withdrawn`: if its `uid` is in the export,
         that is an error; otherwise keep its record from the current
         `data/items.yml`.
@@ -1218,9 +1428,12 @@ Record the results in 0006 under "Tested" (step 10).
 *   **Proposed Changes**:
     1.  Fail unless `git config core.hooksPath` is `.githooks`.
     2.  Fail unless `VAULT_DIR` is set and points to an existing folder.
-    3.  Run `importer` with `ask` reading from the terminal when stdin is
-        a terminal and not `--dry-run`, otherwise returning `None`
-        (`--dry-run` reports the counts instead of failing). Then run
+    3.  Read `sync-pending.yml` if it exists and run `importer`. If it
+        returns a pending file: unless `--dry-run`, write it with
+        `write_outputs` (allowed: `sync-pending.yml`), print "N entries need
+        your confirmation in sync-pending.yml; nothing else was written"
+        and exit 1. `--dry-run` prints the counts and exits 0. Otherwise
+        delete any old `sync-pending.yml` after step 6 succeeds, and run
         `generate.build_outputs` with
         `overlay_reader(import outputs, disk_reader)`, the repo as it would
         be after the import.
@@ -1242,7 +1455,8 @@ Record the results in 0006 under "Tested" (step 10).
     2.  `GET https://api.crossref.org/works/<doi>` with User-Agent
         `site-abstract-license-check/1.0`, no email, a 20-second timeout.
     3.  Accept the first `message.license[]` entry whose `content-version`
-        is `vor` or `unspecified` and whose `URL` matches the CC BY pattern.
+        is `vor` or `unspecified`, whose `URL` matches the CC BY pattern and
+        whose `start` date is on or before today.
     4.  Write `papers/<id>: {url, doi, checked: today}` into
         `data/abstract-licenses.yml` with `write_outputs` (allowed: that one
         path).
@@ -1264,6 +1478,9 @@ Record the results in 0006 under "Tested" (step 10).
         `images/headshot.jpg` (Phase 2 adds
         `papers|talks|posters/<id>/<name>`). After stripping, it runs
         `binaries.check_binary`, then writes.
+    *   Phase 2, for hosted PDFs: `strip_pdf` also drops annotations, and a
+        PDF with images but no extractable text is refused unless
+        `--image-only-ok` is given by the owner.
 
 #### 19. `sync/test_generate.py`, `sync/test_importer.py`, `sync/test_schemas.py`, `sync/test_abstract_license.py`, `sync/test_strip.py` (Create)
 
@@ -1281,11 +1498,15 @@ Record the results in 0006 under "Tested" (step 10).
         running `build_outputs` twice gives identical bytes; `--check`
         reports a hand-edited page.
     *   Importer: every error row of the Lifecycle table; CV missing,
-        unchanged and updated. With a scripted `ask`: a suggested ID
-        accepted; a typed tag; a bad tag asked again; a clash gets the next
-        title word; an accented surname; a missing item withdrawn on "yes"
-        and an error on "no"; `ask` returning `None` stops with counts and
-        writes nothing.
+        unchanged and updated. With pending files built in the test: a new
+        item writes a pending file and no outputs; `confirm: yes` appends
+        the entry; an edited `id` is used; a bad or duplicate `id` stops
+        with the pending file kept; a clash gets the next title word, and a
+        double clash gives an empty `id`; `2D` is skipped; accented and
+        compound surnames; a missing item is withdrawn on `withdraw` and
+        refused on `yes`; an edited `uid` or `title` is an error; a changed
+        export keeps the answers that still apply; an empty export with
+        live manifest entries stops before any pending file.
     *   Schemas: each rule accepts and rejects.
     *   (Phase 2) Abstract license: saved Crossref replies for CC BY
         (`vor`), CC BY-NC, a `tdm` license only, and no license.
@@ -1370,8 +1591,8 @@ Record the results in 0006 under "Tested" (step 10).
 
 #### 26. `data/manifest.yml` (Create)
 
-*   **Type / Scope**: Tool file, written by `sync` import at the owner's
-    prompt.
+*   **Type / Scope**: Tool file, written by `sync` import after the owner
+    confirms in `sync-pending.yml`.
 *   **Proposed Changes**: Created by Claude as `[]` with a header comment
     saying it is written by `sync` and describing the entry format, before
     the deny rule goes in (step 3). From then on, only `sync` writes it.
@@ -1405,7 +1626,8 @@ Record the results in 0006 under "Tested" (step 10).
         4.  `python -m checks --commit HEAD --base ${{ github.event.before }}`.
     *   **Job `build`** (needs `check`):
         1.  `quarto-dev/quarto-actions/setup` with `version: 1.11.9`.
-        2.  `quarto render -M last-updated:$(git log -1 --format=%cs)`.
+        2.  `quarto render -M last-updated:$(git log -1 --format=%cs --
+            data authored '*.qmd')`.
         3.  `python -m checks.postrender _site`.
         4.  `actions/upload-pages-artifact` with `path: _site`.
     *   **Job `deploy`** (needs `build`, runs only on `refs/heads/main`):
@@ -1426,23 +1648,24 @@ Record the results in 0006 under "Tested" (step 10).
 #### 31. `.gitignore` (Modify)
 
 *   **Type / Scope**: Git config.
-*   **Proposed Changes**: Add `__pycache__/`, `.venv/` and
-    `.claude/*.local.md` (the local hookify rules).
+*   **Proposed Changes**: Add `__pycache__/`, `.venv/`,
+    `.claude/*.local.md` (the local hookify rules) and `sync-pending.yml`.
 
 #### 32. `.claude/settings.json` (Modify)
 
 *   **Type / Scope**: Claude Code project settings (tracked).
 *   **Proposed Changes**: Add `permissions.deny`: `Edit(authored/**)`,
     `Write(authored/**)`, `Edit(data/manifest.yml)`,
-    `Write(data/manifest.yml)`. No machine-specific paths.
+    `Write(data/manifest.yml)`, `Edit(sync-pending.yml)`,
+    `Write(sync-pending.yml)`. No machine-specific paths.
 
 #### 33. `.claude/hookify.owner-files.local.md`, `.claude/hookify.hook-bypass.local.md` (Create, local, untracked)
 
 *   **Type / Scope**: Hookify rules (CLAUDE.md Pending setup).
 *   **Proposed Changes**:
-    *   The first rule blocks any Bash command that writes to `authored/` or
-        `data/manifest.yml` (redirections, `sed -i`, `cp`, `mv`, `tee`,
-        `rm`).
+    *   The first rule blocks any Bash command that writes to `authored/`,
+        `data/manifest.yml` or `sync-pending.yml` (redirections, `sed -i`,
+        `cp`, `mv`, `tee`, `rm`).
     *   The second rule blocks the ways Claude could get past the git hooks:
         `--no-verify` on `git commit` or `git push`, any
         `git config core.hooksPath`, and writes to `.githooks/`. It holds no
@@ -1455,10 +1678,10 @@ Record the results in 0006 under "Tested" (step 10).
 
 *   **Type / Scope**: Project instructions.
 *   **Proposed Changes**:
-    *   Add to Rules: "Never write `authored/**` or `data/manifest.yml`;
-        propose text in chat." and "Run `python -m sync --dry-run`; never
-        edit generated files. New IDs and withdrawals are confirmed by the
-        owner running `sync` in a terminal."
+    *   Add to Rules: "Never write `authored/**`, `data/manifest.yml` or
+        `sync-pending.yml`; propose text in chat." and "Never edit generated
+        files. New IDs and withdrawals are confirmed only by the owner, in
+        `sync-pending.yml`."
     *   Update "Where things stand".
     *   Remove each Pending setup line once it is done.
     *   Add "Set `VAULT_DIR` (value in CLAUDE.local.md)" to the setup notes.
@@ -1480,7 +1703,7 @@ Record the results in 0006 under "Tested" (step 10).
     *   the commands `sync`, `sync --dry-run`, `sync.strip`,
         `quarto preview`, the tests (and `sync.abstract_license` in
         Phase 2);
-    *   the six "Adding an item" steps;
+    *   the seven "Adding an item" steps;
     *   the "Who writes what" table, linked to this design.
 
 #### 37. `LICENSE` (Create)
@@ -1498,20 +1721,26 @@ Record the results in 0006 under "Tested" (step 10).
     *   Third-party files are covered by neither license; each shows its own
         rights note (0007).
 
-#### 39. `docs/decisions/0002-url-scheme.md`, `0004-data-schema.md`, `0006-site-generator.md`, `0009-privacy-and-permanence.md` (Modify)
+#### 39. `docs/decisions/0002-url-scheme.md`, `0003-item-ids.md`, `0004-data-schema.md`, `0006-site-generator.md`, `0007-licenses.md`, `0009-privacy-and-permanence.md` (Modify)
 
 *   **Type / Scope**: Decision records, updated after the design is
     approved.
 *   **Proposed Changes**: As listed in "Decision updates this plan needs":
     *   0002: the `aliases:` safety net is withdrawn, pages do not move, and
         the ledger holds page URLs only.
+    *   0003: `sync` suggests IDs, confirmed in `sync-pending.yml`; the year
+        is the year of `date` when the ID is made.
     *   0004: the license record moves to `data/abstract-licenses.yml`;
-        `related` and `files` live in the authored front matter.
+        `related` and `files` live in the authored front matter; visibility
+        is the vault consent plus the owner's ID confirmation.
     *   0006: the two-step `sync`; CI reruns `generate --check`; the CV
         reason has lapsed; the Step 0 results go under "Tested".
+    *   0007: the license record's location; the `start` date rule.
     *   0009: `build` runs `generate --check`; the local hooks are the
         privacy gate for what reaches GitHub; the pre-push hook; `sync`
-        refuses to run without the hooks.
+        refuses to run without the hooks; `sync` does not finish while an
+        exported item has no ID; withdrawals confirmed with `withdraw`; CI's
+        append-only baseline.
 
     Each change is dated 2026-11-25 or later.
 
@@ -1537,8 +1766,9 @@ Record the results in 0006 under "Tested" (step 10).
 *   **E2E/Integration**:
     1.  **Fake vault.** Copy `design/site-export.sample.yaml` into a scratch
         folder as `shared/cv/out/site-export.yaml` and set `VAULT_DIR` to
-        it. In a scratch clone (never committed), run `sync` and accept the
-        five suggested IDs. Then run `quarto render` and
+        it. In a scratch clone (never committed), run `sync`, set
+        `confirm: yes` for the five suggested IDs in `sync-pending.yml`, and
+        run `sync` again. Then run `quarto render` and
         `checks.postrender`, and confirm rows, pages, a tombstone and the
         sitemap.
     2.  **Hook leak test.** In a scratch clone, stage one file per leak kind

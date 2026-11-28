@@ -8,6 +8,34 @@
 - CONTEST: 1 (design N5, already settled in the critic report)
 - DECLINE: 2 (K21, K26)
 
+## Owner decisions (interactive, 2026-11-28)
+
+*   **Accepted as proposed:** K1, K2a, K5, K6, K7, K8, K9, K10, K11, K12,
+    K14, K16–K20, K22–K25.
+*   **K3, accepted without the threshold:** the withdrawal default is "no"
+    and it needs the word `withdraw`; `sync` stops on an empty export; no
+    `--allow-many-missing`.
+*   **K4, replaced by a confirmation file:** the owner doesn't want to type
+    into a running command. `sync` drops terminal prompts entirely. When
+    there are new IDs or withdrawals to confirm, it writes a gitignored
+    `sync-pending.yml` (marked PENDING), stops with a warning and writes
+    nothing else.
+    *   The owner sets `confirm: yes` for each new item, after editing the
+        suggested `id` if wanted, or `confirm: withdraw` for each withdrawal.
+        `sync` then runs again.
+    *   It finishes only when every entry is confirmed, then deletes the file.
+    *   If the export changed in between, answers are kept for entries that
+        still apply.
+    *   Claude's tools are denied on the file. The pre-commit hook refuses a
+        commit while it exists.
+*   **K13, accepted:** the alternatives also include "confirm at a terminal
+    prompt" (rejected 2026-11-28).
+*   **K15, accepted:** skip and quit are not needed with the file (leaving
+    `confirm: no` skips the entry). An empty `id` is left when both tag
+    words are taken. Compound surnames become hyphenated (`de-la-fuente`).
+*   **Declined (agreed):** K21, K26, design N5.
+*   **K2b:** sent to the vault agent (`design/request-4-to-vault-agent.md`).
+
 ## Escalated: needs the owner's knowledge
 
 ### [K2b] [`egm-design`] - Severity: Major
